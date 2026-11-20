@@ -111,6 +111,7 @@ input,textarea{font:inherit;color:inherit}
 .bar{height:8px;background:rgba(255,255,255,.15);border-radius:9px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--yellow);border-radius:9px;transition:width .5s}
 .hero .goal{font-size:12px;opacity:.8;margin-top:6px}
+.hero .goal b{display:inline;font-size:inherit;margin:0;font-weight:800}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
 .menu{border-radius:24px;padding:18px 16px;text-align:left;display:flex;flex-direction:column;gap:10px;min-height:150px;position:relative;overflow:hidden;transition:transform .12s}
 .menu:active{transform:scale(.97)}
@@ -180,6 +181,8 @@ input,textarea{font:inherit;color:inherit}
 .mic svg{width:28px;height:28px}
 .mic.on{background:var(--red);animation:pulse2 1.1s infinite}
 .mic.off{background:#C9C4D2}
+.mic.nudge{background:var(--coral);animation:nudge 1.2s infinite}
+@keyframes nudge{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(47,107,255,.45)}50%{transform:scale(1.08);box-shadow:0 0 0 14px rgba(47,107,255,0)}}
 @keyframes pulse2{50%{box-shadow:0 0 0 12px rgba(239,75,75,.18)}}
 .mic-tx{flex:1;font-size:14px;color:var(--ink2);line-height:1.45}
 .mic-tx b{display:block;color:var(--ink);font-size:15px}
@@ -190,6 +193,19 @@ input,textarea{font:inherit;color:inherit}
 .type-row input{flex:1;padding:13px 14px;border-radius:14px;border:2px solid var(--line);outline:none;font-size:15px;min-width:0}
 .type-row input:focus{border-color:var(--coral)}
 .type-row button{padding:0 16px;border-radius:14px;background:var(--coral);color:#fff;font-weight:700;font-size:14px}
+.float-score{position:absolute;left:50%;top:52px;transform:translate(-50%,0);z-index:5;min-width:180px;padding:14px 22px 12px;border-radius:24px;text-align:center;box-shadow:0 14px 36px rgba(20,45,100,.22);animation:floatIn .5s cubic-bezier(.2,1.5,.4,1) both;pointer-events:none}
+.float-score .n{font:900 46px/1 Outfit}
+.float-score .t{font-weight:800;font-size:14px;margin-top:4px}
+.float-score .s{font-size:12px;opacity:.8;margin-top:3px}
+.float-score.good{background:#fff;color:var(--mint);border:3px solid var(--mint)}
+.float-score.mid{background:#fff;color:#D99A00;border:3px solid #FFC83D}
+.float-score.bad{background:#fff;color:var(--red);border:3px solid var(--red)}
+.float-score.out{animation:floatOut .4s ease forwards}
+@keyframes floatIn{from{opacity:0;transform:translate(-50%,24px) scale(.6)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes floatOut{to{opacity:0;transform:translate(-50%,-30px) scale(.9)}}
+.day-prog{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2);margin:0 0 10px}
+.day-prog .bar{flex:1;height:8px;background:var(--line);border-radius:6px;overflow:hidden}
+.day-prog .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--coral),#0EA5E9);border-radius:6px}
 .res{margin-top:14px;border-radius:18px;padding:14px 16px;display:flex;gap:14px;align-items:center;animation:fade .3s}
 .res .sc{font-family:'Outfit';font-size:30px;font-weight:900;min-width:64px;text-align:center}
 .res .msg{flex:1;font-size:13.5px;line-height:1.5}
@@ -644,7 +660,7 @@ const TOPICS = [
 // ---------- State ----------
 const LS='wordy_v1';
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
-let S = {name:'',onboarded:false,tested:false,tier:0,testScore:0,xp:0,xpDay:'',xpToday:0,streak:0,lastDay:'',known:{},sentDone:{},chats:0,wordGroup:null,sentGroup:null,outfit:{},best:{},lastStudy:'word',face:'happy',points:0,owned:{},adDay:'',adCount:0,adEarned:0};
+let S = {name:'',onboarded:false,tested:false,tier:0,testScore:0,xp:0,xpDay:'',xpToday:0,streak:0,lastDay:'',known:{},sentDone:{},chats:0,wordGroup:null,sentGroup:null,autoFlow:true,tierExp:0,tierStart:null,goalDays:0,goalDay:'',promoFailDay:'',outfit:{},best:{},lastStudy:'word',face:'happy',points:0,owned:{},adDay:'',adCount:0,adEarned:0};
 // TEST MODE: 열 때마다 첫 시작화면부터 (출시 전 false로 변경)
 const TEST_MODE=false; // true로 바꾸면 열 때마다 초기화되는 테스트 모드
 if(TEST_MODE){ try{localStorage.removeItem(LS)}catch(e){} }
@@ -659,10 +675,54 @@ function addXP(n){
     S.streak = (S.lastDay===ys)? S.streak+1 : 1;
     S.lastDay=t;
   }
-  S.xp+=n;S.xpToday+=n;save();
+  S.xp+=n; save();
+}
+// ===== 오늘의 목표 = 오늘의 단어 10개 + 오늘의 문장 10개 완료 =====
+function dailyState(){ const t=today(); if(!S.daily||S.daily.day!==t) S.daily={day:t,w:{},s:{},wAward:false,sAward:false}; return S.daily; }
+function dailyTarget(mode){ const maxG=groupForTier(S.tier); const g=Math.min(S[mode==='word'?'wordGroup':'sentGroup']??maxG,maxG); return Math.min(10,getList(mode,g).length); }
+function dailyCount(mode){ return Object.keys(dailyState()[mode==='word'?'w':'s']).length; }
+function markPassed(mode,key){
+  const d=dailyState(), k=mode==='word'?'w':'s'; if(d[k][key]) return false;
+  d[k][key]=1; const n=Object.keys(d[k]).length, tgt=dailyTarget(mode);
+  if(n>=tgt&&!d[k+'Award']){
+    d[k+'Award']=true; const P=PROG[S.tier], half=Math.round(P.goal/2); addXP(half);
+    setTimeout(()=>toast(`${mode==='word'?'📘 오늘의 단어':'📗 오늘의 문장'} ${tgt}개 완료! +${half} XP`),1700);
+    if(d.wAward&&d.sAward) grantDailyGoal();
+  }
+  save(); return true;
+}
+function grantDailyGoal(){
+  const t=today(), pg=PROG[S.tier]; if(S.goalDay===t) return; S.goalDay=t;
+  if(S.tier>=8){ setTimeout(()=>toast('🎯 오늘의 목표 달성! 챌린저 유지 중 👑'),3400); save(); return; }
+  const before=S.tierExp||0; S.tierExp=Math.min(100,before+pg.exp); S.goalDays=(S.goalDays||0)+1; save();
+  setTimeout(()=>toast(`🎯 오늘의 목표 달성! 승급 경험치 +${pg.exp}% → ${S.tierExp}%`),3400);
+  if(S.tierExp>=100&&before<100) setTimeout(()=>toast('🏆 승급 경험치를 다 채웠어요!<br>최소 기간이 지나면 승급전에 도전할 수 있어요'),6200);
 }
 const groupForTier=t=>t<=1?0:t<=3?1:t<=5?2:3;
-const DAILY_GOAL=50;
+const GROUP_MIN_TIER=[0,2,4,6];
+// ===== 티어별 성장 규칙 =====
+// goal: 오늘의 목표 XP · exp: 목표 달성 시 얻는 승급 경험치(%) · days: 승급전까지 최소 기간(일)
+const PROG=[
+  {goal:30, exp:25, days:3},   // 아이언 → 브론즈
+  {goal:40, exp:20, days:5},   // 브론즈 → 실버
+  {goal:50, exp:15, days:7},   // 실버 → 골드
+  {goal:60, exp:12, days:10},  // 골드 → 플래티넘
+  {goal:70, exp:10, days:14},  // 플래티넘 → 다이아몬드
+  {goal:80, exp:8,  days:21},  // 다이아몬드 → 마스터
+  {goal:100,exp:6,  days:30},  // 마스터 → 그랜드마스터
+  {goal:120,exp:5,  days:45},  // 그랜드마스터 → 챌린저
+  {goal:150,exp:0,  days:0},   // 챌린저 (최고 티어)
+];
+const PROMO_PENALTY=30, PROMO_PASS=0.75;
+const dayNo=()=>{const d=new Date();return Math.floor(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5)};
+function daysInTier(){ if(S.tierStart==null){S.tierStart=dayNo();save();} return dayNo()-S.tierStart; }
+function promoState(){
+  if(S.tier>=8) return {top:true};
+  const p=PROG[S.tier], exp=Math.min(100,S.tierExp||0), d=daysInTier();
+  const expReady=exp>=100, daysReady=d>=p.days, cooldown=S.promoFailDay===today();
+  return {exp,d,need:p.days,expReady,daysReady,cooldown,ready:expReady&&daysReady&&!cooldown,next:S.tier+1};
+}
+const DAILY_GOAL=50; // (구버전 호환용)
 
 // ---------- Platform capabilities (voice / AI) ----------
 let TTS=null, DICT=null, AI=null, dictState='idle', dictTarget=null;
@@ -673,10 +733,10 @@ function webDictation(){
   let rec=null, cbP=()=>{}, cbF=()=>{}, cbS=()=>{};
   return { onPartial(f){cbP=f}, onFinal(f){cbF=f}, onState(f){cbS=f},
     start(){ return new Promise((res,rej)=>{ try{
-      rec=new SR(); rec.lang='en-US'; rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=1;
+      rec=new SR(); rec.lang='en-US'; rec.interimResults=true; rec.continuous=true; rec.maxAlternatives=1;
       rec.onstart=()=>{cbS({state:'listening'});res()};
       rec.onresult=e=>{ let interim=''; for(let i=e.resultIndex;i<e.results.length;i++){ const r=e.results[i]; if(r.isFinal) cbF({text:r[0].transcript}); else interim+=r[0].transcript; } if(interim) cbP({text:interim}); };
-      rec.onerror=e=>{ if(e.error==='not-allowed'||e.error==='service-not-allowed') rej({code:'not_granted'}); cbS({state:'idle',reason:e.error}); };
+      rec.onerror=e=>{ if(e.error==='not-allowed'||e.error==='service-not-allowed') rej({code:'not_granted'}); else if(e.error==='audio-capture') toast('마이크를 찾을 수 없어요. 마이크 권한을 확인해 주세요'); else if(e.error==='network') toast('음성 인식에 인터넷 연결이 필요해요'); cbS({state:'idle',reason:e.error}); };
       rec.onend=()=>cbS({state:'idle',reason:'stopped'});
       rec.start(); }catch(err){ rej(err); } }); },
     stop(){ try{ rec&&rec.stop(); }catch(e){} return Promise.resolve(); } };
@@ -705,6 +765,7 @@ try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }catch
 if(!VOICES[S.gender]) S.gender='female';
 if(!FACES[S.face]) S.face='happy';
 function speak(text,slow){
+  if(LIVE.on) return liveSpeak(text,slow);
   if(dictState==='listening'){toast('말하기 중에는 듣기를 할 수 없어요');return Promise.resolve();
 
   }
@@ -715,40 +776,75 @@ function speak(text,slow){
   }
   return browserSpeak(text,slow);
 }
+// --- 실행 환경 감지 (카카오톡·네이버 등 앱 안 브라우저)
+const UA=navigator.userAgent||'';
+const IS_ANDROID=/Android/i.test(UA), IS_IOS=/iPhone|iPad|iPod/i.test(UA);
+const INAPP=/KAKAOTALK/i.test(UA)?'카카오톡':/NAVER\(inapp|NAVER/i.test(UA)?'네이버':/Instagram/i.test(UA)?'인스타그램':/FBAN|FBAV/i.test(UA)?'페이스북':/ Line\//i.test(UA)?'라인':/DaumApps/i.test(UA)?'다음':/everytimeApp/i.test(UA)?'에브리타임':(IS_ANDROID&&/; wv\)/.test(UA))?'앱':'';
+function openExternal(){
+  const url=location.href;
+  if(/KAKAOTALK/i.test(UA)){ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(url); return; }
+  if(IS_ANDROID){ location.href='intent://'+url.replace(/^https?:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;end'; return; }
+  try{ navigator.clipboard.writeText(url).then(()=>toast('주소를 복사했어요.<br>Safari를 열고 주소창에 붙여넣어 주세요'),()=>toast('오른쪽 아래 ⋯ 메뉴에서<br>"Safari로 열기"를 눌러 주세요')); }catch(e){ toast('오른쪽 아래 ⋯ 메뉴에서<br>"Safari로 열기"를 눌러 주세요'); }
+}
+function inappHelp(what){
+  confirmBox(`${INAPP} 안에서는 ${what}이 안 될 수 있어요`,`${INAPP} 앱 안의 브라우저는 소리·마이크 기능을 막는 경우가 많아요.<br><b>${IS_IOS?'Safari':'크롬'}로 열면</b> 듣기와 말하기를 모두 쓸 수 있어요.<br><span style="color:var(--muted);font-size:13px">학습 기록은 브라우저마다 따로 저장돼요.</span>`,`${IS_IOS?'Safari':'크롬'}로 열기`,openExternal);
+}
+function showInappBanner(){
+  if(!INAPP||document.getElementById('inappBar')) return;
+  const b=document.createElement('div'); b.id='inappBar';
+  b.style.cssText='position:absolute;left:10px;right:10px;bottom:84px;z-index:45;background:#14213D;color:#fff;border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.25)';
+  b.innerHTML=`<span style="font-size:20px">🔊</span><span style="flex:1"><b>${INAPP}</b>에서는 소리·마이크가 안 될 수 있어요</span><button style="background:#2F6BFF;color:#fff;border-radius:10px;padding:8px 10px;font-weight:800;font-size:12.5px;white-space:nowrap" id="inappGo">${IS_IOS?'Safari':'크롬'}로 열기</button><button id="inappX" style="color:#fff;opacity:.7;font-size:18px;padding:0 4px">×</button>`;
+  document.getElementById('app').appendChild(b);
+  b.querySelector('#inappGo').onclick=openExternal; b.querySelector('#inappX').onclick=()=>b.remove();
+}
+// 안드로이드 카카오톡이면 처음 한 번 자동으로 크롬으로 열기 시도
+try{ if(/KAKAOTALK/i.test(UA)&&IS_ANDROID&&!sessionStorage.getItem('wordyExt')){ sessionStorage.setItem('wordyExt','1'); setTimeout(openExternal,600); } }catch(e){}
+setTimeout(()=>{ if(INAPP&&(IS_ANDROID||!('speechSynthesis' in window))) showInappBanner(); },3000);
+let _voiceWarned=false;
+function warnNoEnglishVoice(){
+  if(_voiceWarned) return; _voiceWarned=true;
+  confirmBox('영어 음성이 설치되어 있지 않아요',IS_ANDROID?'휴대폰 <b>설정 → 일반 → 텍스트 음성 변환(TTS)</b>에서<br>① 기본 엔진을 <b>Google 음성 인식 및 합성</b>으로 바꾸고<br>② <b>영어(미국)</b> 음성 데이터를 설치해 주세요.<br>설치 후 워디를 다시 열면 원어민 발음으로 들려요.':'기기 설정에서 영어(미국) 음성을 추가해 주세요.','확인',()=>{});
+}
 function browserSpeak(text,slow){
   return new Promise(res=>{
     try{
-      if(!('speechSynthesis' in window)){toast('이 환경에서는 음성 재생이 지원되지 않아요');return res();}
+      if(!('speechSynthesis' in window)){ if(INAPP) inappHelp('소리 듣기'); else toast('이 브라우저에서는 음성 재생이 지원되지 않아요.<br>크롬이나 Safari로 열어 주세요'); return res(); }
+      const _all=speechSynthesis.getVoices(); if(_all.length&&!_all.some(v=>/^en[-_]/i.test(v.lang))) warnNoEnglishVoice();
       speechSynthesis.cancel();
       const u=new SpeechSynthesisUtterance(text);u.lang='en-US';u.rate=slow?0.8:1;
       const v=deviceVoice(S.gender); if(v){u.voice=v;u.lang=v.lang;}
-      u.onend=res;u.onerror=res;speechSynthesis.speak(u);
+      u.onend=res;u.onerror=res;speechSynthesis.speak(u); setTimeout(res,(slow?3500:2500)+text.length*(slow?120:90)); // 기기에서 종료 신호가 안 오는 경우 대비
     }catch(e){res()}
   });
 }
 
-function micStart(target){
-  if(!DICT){toast('이 환경에서는 음성 인식이 지원되지 않아요.<br>아래 입력창으로 연습해 주세요 ✍️');const i=document.querySelector('[data-typein]');if(i)i.focus();return;}
+function micStart(target,auto){
+  if(!DICT&&INAPP){ inappHelp('말하기 연습'); return; }
+  if(!DICT){toast('이 브라우저에서는 음성 인식이 지원되지 않아요.<br>크롬이나 Safari로 열어 주세요');const i=document.querySelector('[data-typein]');if(i)i.focus();return;}
   if(dictState==='listening'){DICT.stop().catch(()=>{});return;}
   dictTarget=target;
   DICT.start().catch(e=>{
     const c=e&&e.code;
+    if(auto&&c!=='not_granted'){ micNudge(); return; }
     if(c==='not_granted'){toast('마이크 권한이 없어요. 입력으로 연습해 주세요 ✍️')}
     else if(c==='dismissed'){toast('마이크 사용을 다시 허용하려면 한 번 더 눌러 주세요')}
+    else if(auto) micNudge();
     else toast('음성 인식을 시작하지 못했어요. 입력으로 연습해 주세요');
   });
 }
 function refreshMicUI(){
   document.querySelectorAll('[data-mic]').forEach(b=>{
-    b.classList.toggle('on',dictState==='listening');
+    const on=dictState==='listening'||(LIVE.on&&b.id==='micBtn');
+    b.classList.toggle('on',on);
     b.classList.toggle('off',!DICT && !b.classList.contains('mic2'));
-    b.innerHTML = dictState==='listening'?I.stop:I.mic;
+    b.innerHTML = on?I.stop:I.mic;
   });
   const st=document.getElementById('micState');
   if(st){
-    if(!DICT) st.innerHTML='<b>음성 인식 미지원</b>이 환경에선 입력으로 연습할 수 있어요';
-    else if(dictState==='listening') st.innerHTML='<b>듣고 있어요…</b><span class="live" id="liveTx">말한 뒤 ■ 버튼을 눌러요</span>';
-    else st.innerHTML='<b>따라 말해 보세요</b>마이크를 누르고 또박또박 읽어요';
+    if(!DICT) st.innerHTML='<b>이 브라우저에선 말하기를 쓸 수 없어요</b>크롬이나 Safari에서 열면 말하기 연습을 할 수 있어요';
+    else if(LIVE.on) st.innerHTML='<b>🔴 연습 중 · 마이크 켜짐</b><span class="live" id="liveTx">따라 말해 보세요</span><br><span style="font-size:11.5px;color:var(--muted)">인식되면 자동으로 넘어가요 · ■ 누르면 종료</span>';
+    else if(dictState==='listening') st.innerHTML='<b>듣고 있어요… 🎙</b><span class="live" id="liveTx">또박또박 말해 보세요</span>';
+    else st.innerHTML='<b>🎙 눌러서 연습 시작</b>마이크는 계속 켜져 있고, 따라 말하면 자동으로 넘어가요';
   }
 }
 
@@ -808,15 +904,17 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 let toastT;
 function toast(html){const t=$('#toast');t.innerHTML=html;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
 function setScreen(html,tab){
-  stopAudio(); if(G&&G.timer){clearInterval(G.timer);G.timer=null}
+  stopAudio(LIVE.on&&(tab==='word'||tab==='sent')); if(G&&G.timer){clearInterval(G.timer);G.timer=null}
   const sc=$('#screen'); sc.innerHTML=`<div class="fade" style="height:100%">${html}</div>`; sc.scrollTop=0;
   const tb=$('#tabbar');
   if(tab){tb.classList.remove('hidden');renderTabs(tab)} else tb.classList.add('hidden');
   refreshMicUI();
 }
-function stopAudio(){
+function stopAudio(keepLive){
   try{ if(TTS&&TTS.stop) TTS.stop(); }catch(e){}
   try{ if('speechSynthesis' in window) speechSynthesis.cancel(); }catch(e){}
+  if(keepLive&&LIVE.on){ LIVE.gateUntil=0; return; }
+  LIVE.on=false; LIVE.card=null;
   if(DICT&&dictState==='listening'){dictTarget=null;DICT.stop().catch(()=>{})}
 }
 function renderTabs(on){
@@ -835,7 +933,7 @@ function confirmBox(title,msg,okLabel,onOk){
 
 // ---------- Router ----------
 function go(r,arg){
-  ({splash,onboard,name:nameScreen,test:testIntro,testRun,result,home,word,sent,talk,chat,me,study:()=>go(S.lastStudy||'word'),reward,game,gBlock,gSearch,gQuiz,closet})[r](arg);
+  ({splash,onboard,name:nameScreen,test:testIntro,testRun,result,promoIntro,promoResult,diagResult,home,word,sent,talk,chat,me,study:()=>go(S.lastStudy||'word'),reward,game,gBlock,gSearch,gQuiz,closet})[r](arg);
 }
 
 // ---------- 1. Splash ----------
@@ -883,12 +981,12 @@ function nameScreen(){
 
 // ---------- 3. Level test ----------
 function testIntro(opt={}){
-  setScreen(`<div class="top">${opt.first?'':`<button class="iconbtn" onclick="go('home')">${I.back}</button>`}<h2>레벨테스트</h2></div>
+  setScreen(`<div class="top">${opt.first?'':`<button class="iconbtn" onclick="go('home')">${I.back}</button>`}<h2>${S.tested?'실력 진단 테스트':'레벨테스트'}</h2></div>
   <div class="pad" style="padding-top:8px">
     <div class="card" style="text-align:center;padding:24px 18px">
       ${mascot(96,'wow',S.outfit)}
       <h2 style="font-size:21px;font-weight:900;margin:12px 0 6px">${esc(S.name||'')}님의 영어 티어를 알아볼까요?</h2>
-      <p style="color:var(--ink2);font-size:14px;line-height:1.6">어휘 · 문법 · 듣기 · 관용어 <b>18문항</b> (약 5분)<br>문제가 점점 어려워져요. 모르면 찍어도 괜찮아요!</p>
+      <p style="color:var(--ink2);font-size:14px;line-height:1.6">어휘 · 문법 · 듣기 · 관용어 <b>18문항</b> (약 5분)<br>문제가 점점 어려워져요. 모르면 찍어도 괜찮아요!${S.tested?'<br><b style="color:var(--coral)">※ 진단용이라 결과가 티어에 반영되지 않아요. 승급은 승급전으로!</b>':''}</p>
     </div>
     <div class="sec-title">9단계 티어</div>
     <div class="tier-list">${TIERS.map((t,i)=>`<div class="tier-item" style="opacity:1">${emblem(i,52)}<div>${t.ko}</div></div>`).join('')}</div>
@@ -898,14 +996,59 @@ function testIntro(opt={}){
     </div>
   </div>`);
 }
-function skipTest(){S.onboarded=true;save();go('home')}
+function skipTest(){S.onboarded=true;S.tierStart=dayNo();S.tierExp=0;save();go('home')}
+function buildPromo(n){
+  // 승급할 티어(n)의 난이도(n+1)와 바로 아래 난이도(n) 문제로 8문항
+  let pool=TEST.filter(q=>q.d===n+1||q.d===n);
+  if(pool.length<8) pool=pool.concat(TEST.filter(q=>q.d===Math.min(9,n+2)));
+  return shuffle(pool).slice(0,8).map(q=>{const order=shuffle(q.o.map((_,k)=>k));return Object.assign({},q,{o:order.map(k=>q.o[k]),a:order.indexOf(q.a)})});
+}
+function promoIntro(){
+  const ps=promoState(); if(ps.top) return go('home');
+  const n=S.tier+1, need=Math.ceil(8*PROMO_PASS);
+  setScreen(`<div class="top"><button class="iconbtn" onclick="go('home')">${I.back}</button><h2>승급전</h2></div>
+  <div class="pad" style="padding-top:8px">
+    <div class="card" style="text-align:center;padding:26px 18px">
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px">${emblem(S.tier,70)}<span style="font-size:26px;color:var(--muted)">→</span>${emblem(n,96)}</div>
+      <h2 style="font-size:22px;font-weight:900;margin:10px 0 6px">${TIERS[n].ko} 승급전</h2>
+      <p style="color:var(--ink2);font-size:14px;line-height:1.7">${TIERS[n].ko} 수준 문제 <b>8문항</b> 중 <b>${need}개 이상</b> 맞히면 승급!<br>실패하면 승급 경험치 <b>-${PROMO_PENALTY}%</b>, 재도전은 <b>내일</b>부터 가능해요.</p>
+    </div>
+    <div style="margin-top:18px;display:flex;flex-direction:column;gap:8px">
+      ${ps.ready?`<button class="btn btn-primary" onclick="promoStart()">⚔️ 승급전 시작</button>`:`<button class="btn btn-soft" onclick="toast('아직 승급전 조건을 채우지 못했어요')">조건을 채우면 열려요</button>`}
+      <button class="btn btn-ghost" onclick="tierRules()">티어별 성장 규칙 보기</button>
+    </div>
+  </div>`,'home');
+}
+function promoStart(){
+  const ps=promoState(); if(!ps.ready){toast('아직 승급전에 도전할 수 없어요');return;}
+  T={points:0,correct:0,qs:buildPromo(S.tier+1),mode:'promo',target:S.tier+1,keep:true}; testRun(0);
+}
+function tierRules(){
+  const d=document.createElement('div'); d.className='modal-bg';
+  d.innerHTML=`<div class="modal" style="max-height:85%;overflow-y:auto"><h3>📈 티어별 성장 규칙</h3>
+    <p style="margin-bottom:12px">매일 <b>오늘의 단어 10개 + 오늘의 문장 10개</b>를 끝내면(오늘의 목표) <b>XP</b>와 <b>승급 경험치</b>가 쌓여요. 경험치 100%와 <b>최소 기간</b>을 모두 채우면 <b>승급전</b>에 도전할 수 있어요.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:center">
+      <tr style="color:var(--muted);font-weight:700"><td style="text-align:left;padding:6px 0">티어</td><td>목표 보상</td><td>승급 경험치</td><td>최소 기간</td></tr>
+      ${TIERS.map((t,i)=>`<tr style="border-top:1px solid var(--line);${i===S.tier?'background:var(--coral-soft);font-weight:800':''}"><td style="text-align:left;padding:8px 4px;white-space:nowrap">${emblem(i,22)} ${t.ko}</td><td>${PROG[i].goal} XP</td><td>${i<8?'+'+PROG[i].exp+'%':'-'}</td><td>${i<8?PROG[i].days+'일':'최고 티어'}</td></tr>`).join('')}
+    </table>
+    <p style="font-size:12.5px;margin:12px 0 0">※ 승급전 8문항 중 ${Math.ceil(8*PROMO_PASS)}개 이상 정답 시 승급 · 실패 시 승급 경험치 -${PROMO_PENALTY}% · 레벨테스트 재응시는 진단용이라 티어가 바뀌지 않아요.</p>
+    <button class="btn btn-primary" style="margin-top:16px" onclick="this.closest('.modal-bg').remove()">확인</button></div>`;
+  d.onclick=e=>{if(e.target===d)d.remove()}; $('#app').appendChild(d);
+}
+function devNextDay(){
+  // 🧪 테스트용: 하루가 지나고 오늘의 목표를 달성한 것으로 처리
+  const p=PROG[S.tier]; if(S.tierStart==null)S.tierStart=dayNo(); S.tierStart-=1; S.promoFailDay='';
+  if(S.tier<8){ S.tierExp=Math.min(100,(S.tierExp||0)+p.exp); S.goalDays=(S.goalDays||0)+1; }
+  save(); toast(`🧪 하루 경과 + 목표 달성 처리 (승급 경험치 ${S.tierExp}%)`); home();
+}
 let T={points:0,correct:0,qs:[]};
 function testRun(i){
-  if(i===0) T={points:0,correct:0,qs:buildTest()};
+  if(i===0){ if(T.keep) T.keep=false; else T={points:0,correct:0,qs:buildTest(),mode:S.tested?'diag':'place'}; }
+  const N=T.qs.length;
   const q=T.qs[i];
   setScreen(`<div class="top"><button class="iconbtn" onclick="confirmBox('테스트를 그만둘까요?','지금까지 푼 문제는 저장되지 않아요.','그만두기',()=>go(S.onboarded?'home':'test',{first:!S.onboarded}))">${I.x}</button>
-    <div class="progress"><i style="width:${(i/TEST_N)*100}%"></i></div><span class="en" style="font-weight:800;font-size:14px;color:var(--muted)">${i+1}/${TEST_N}</span></div>
-  <div class="q-wrap">
+    <div class="progress"><i style="width:${(i/N)*100}%"></i></div><span class="en" style="font-weight:800;font-size:14px;color:var(--muted)">${i+1}/${N}</span></div>
+  <div class="q-wrap">${T.mode==='promo'?`<div style="font-size:13px;font-weight:800;color:var(--coral);margin-bottom:8px">⚔️ ${TIERS[T.target].ko} 승급전 · ${Math.ceil(N*PROMO_PASS)}개 이상 정답 시 승급</div>`:''}
     <span class="q-kind">${q.kind}${q.listen?' 🎧':''}</span>
     ${q.listen?`<button class="listen-big" id="lb" onclick="speak(T.qs[${i}].listen)">${I.spk}</button><div style="text-align:center;margin:-14px 0 18px"><button class="pbtn alt" style="display:inline-flex" onclick="speak(T.qs[${i}].listen,true)">천천히 듣기</button></div>`:''}
     <div class="q-text ${q.listen?'':'en'}">${q.q}</div>
@@ -916,12 +1059,23 @@ function testRun(i){
     if(done)return;done=true;const k=+b.dataset.k;
     const ok=k===q.a; if(ok){T.points+=q.d;T.correct++}
     b.classList.add(ok?'ok':'no'); if(!ok) document.querySelector(`.opt[data-k="${q.a}"]`).classList.add('ok');
-    setTimeout(()=>i+1<TEST_N?testRun(i+1):finishTest(),ok?550:1000);
+    setTimeout(()=>i+1<N?testRun(i+1):finishTest(),ok?550:1000);
   });
 }
 function finishTest(){
+  if(T.mode==='promo'){
+    const need=Math.ceil(T.qs.length*PROMO_PASS); T.need=need; T.pass=T.correct>=need;
+    if(T.pass){
+      S.tier=T.target; S.tested=true; S.tierExp=0; S.tierStart=dayNo(); S.goalDays=0; S.promoFailDay='';
+      S.wordGroup=groupForTier(S.tier); S.sentGroup=groupForTier(S.tier);
+      T.newItems=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===S.tier); S.outfit=S.outfit||{}; T.newItems.forEach(k=>S.outfit[ITEMS[k].slot]=k);
+      save(); addXP(30);
+    } else { T.lost=Math.min(PROMO_PENALTY,S.tierExp||0); S.tierExp=Math.max(0,(S.tierExp||0)-PROMO_PENALTY); S.promoFailDay=today(); save(); }
+    return go('promoResult');
+  }
   const pct=T.points/T.qs.reduce((a,q)=>a+q.d,0); const tier=Math.min(8,Math.floor(pct*9+0.0001));
-  S.tier=tier;S.tested=true;S.testScore=T.correct;S.onboarded=true;
+  if(T.mode==='diag'){ T.diagTier=tier; T.diagScore=T.correct; addXP(10); save(); return go('diagResult'); }
+  S.tier=tier;S.tested=true;S.testScore=T.correct;S.onboarded=true;S.tierExp=0;S.tierStart=dayNo();S.goalDays=0;
   S.wordGroup=groupForTier(tier);S.sentGroup=groupForTier(tier);
   T.newItems=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===tier);
   S.outfit=S.outfit||{}; T.newItems.forEach(k=>S.outfit[ITEMS[k].slot]=k);
@@ -942,10 +1096,46 @@ function result(){
   </div>`);
 }
 
+function promoResult(){
+  const t=TIERS[S.tier];
+  if(T.pass){
+    setScreen(`<div class="result">
+      <div class="label">⚔️ 승급전 결과</div>
+      <div class="emb" style="margin-top:14px">${emblem(S.tier,150)}</div>
+      <h1>승급 성공! 🎉</h1>
+      <div class="en" style="font-weight:800;letter-spacing:.14em;color:${t.c2}">${t.en}</div>
+      <div class="score"><div class="stat" style="min-width:100px"><b class="en">${T.correct}/${T.qs.length}</b><small>정답</small></div><div class="stat" style="min-width:100px"><b class="en">+30</b><small>XP 획득</small></div></div>
+      <p style="color:var(--ink2);line-height:1.6;font-size:15px;margin-bottom:18px">이제 <b>${t.ko}</b>예요! ${t.desc}<br>오늘의 목표 보상이 <b>${PROG[S.tier].goal} XP</b>로 올랐어요.${groupForTier(S.tier)>groupForTier(S.tier-1)?`<br>🔓 <b>${GROUPS_SHORT[groupForTier(S.tier)]}</b> 단어·문장이 열렸어요!`:''}</p>
+      ${T.newItems&&T.newItems.length?`<div class="card" style="display:flex;align-items:center;gap:12px;text-align:left;margin-bottom:18px;background:linear-gradient(135deg,#E2EBFF,#DFF3FC)">${mascot(76,'wow',S.outfit)}<div style="font-size:13.5px;line-height:1.5"><b style="font-size:15px">🎁 티어 보상 획득!</b><br><b>${T.newItems.map(k=>ITEMS[k].ko).join(' · ')}</b>을 워디가 착용했어요.</div></div>`:''}
+      <button class="btn btn-primary" onclick="go('home')">홈으로</button>
+    </div>`);
+  } else {
+    setScreen(`<div class="result">
+      <div class="label">⚔️ 승급전 결과</div>
+      <div style="margin-top:10px">${mascot(130,'sad',S.outfit)}</div>
+      <h1 style="font-size:28px">아쉬워요!</h1>
+      <div class="score"><div class="stat" style="min-width:100px"><b class="en">${T.correct}/${T.qs.length}</b><small>정답 (${T.need}개 필요)</small></div><div class="stat" style="min-width:100px"><b class="en">-${T.lost}%</b><small>승급 경험치</small></div></div>
+      <p style="color:var(--ink2);line-height:1.6;font-size:15px;margin-bottom:22px">${TIERS[T.target].ko} 승급까지 조금 더 연습해요.<br>오늘의 목표로 경험치를 다시 채우면 <b>내일부터</b> 재도전할 수 있어요.</p>
+      <button class="btn btn-primary" onclick="go('home')">홈으로</button>
+    </div>`);
+  }
+}
+function diagResult(){
+  const dt=TIERS[T.diagTier], ct=TIERS[S.tier];
+  setScreen(`<div class="result">
+    <div class="label">실력 진단 결과</div>
+    <div class="emb" style="margin-top:14px">${emblem(T.diagTier,120)}</div>
+    <h1 style="font-size:28px">${dt.ko} 수준</h1>
+    <div class="score"><div class="stat" style="min-width:100px"><b class="en">${T.diagScore}/${T.qs.length}</b><small>정답</small></div><div class="stat" style="min-width:100px"><b class="en">+10</b><small>XP 획득</small></div></div>
+    <p style="color:var(--ink2);line-height:1.6;font-size:15px;margin-bottom:22px">현재 티어는 <b>${ct.ko}</b> 그대로예요.<br>티어는 <b>오늘의 목표 → 승급 경험치 → 승급전</b>으로만 올라가요.${T.diagTier>S.tier?'<br>💪 실력은 충분해요! 꾸준히 목표를 채워 승급전에 도전하세요.':''}</p>
+    <button class="btn btn-primary" onclick="go('home')">홈으로</button>
+  </div>`);
+}
+
 // ---------- 4. Home ----------
 function home(){
   if(S.xpDay!==today()){S.xpToday=0}
-  const t=TIERS[S.tier]; const g=Math.min(100,Math.round((S.xpToday/DAILY_GOAL)*100));
+  const t=TIERS[S.tier], P=PROG[S.tier], ps=promoState(); const dW=Math.min(dailyCount('word'),dailyTarget('word')), dS=Math.min(dailyCount('sent'),dailyTarget('sent')), tW=dailyTarget('word'), tS=dailyTarget('sent'); const g=Math.round((dW+dS)/(tW+tS)*100);
   const knownN=Object.keys(S.known).length, sentN=Object.keys(S.sentDone).length;
   const h=new Date().getHours(); const hi=h<12?'좋은 아침이에요':h<18?'좋은 오후예요':'좋은 저녁이에요';
   setScreen(`<div class="pad">
@@ -954,8 +1144,17 @@ function home(){
       <div style="z-index:1">${emblem(S.tier,82)}</div>
       <div class="info"><small>현재 티어 ${S.tested?'':'· 테스트 전'}</small><b>${t.ko}</b>
         <div class="bar"><i style="width:${g}%"></i></div>
-        <div class="goal">오늘의 목표 <b class="en">${S.xpToday}/${DAILY_GOAL} XP</b> ${g>=100?'달성! 🎉':''}</div></div>
+        <div class="goal">오늘의 목표 · 단어 <b class="en">${dW}/${tW}</b> · 문장 <b class="en">${dS}/${tS}</b> ${g>=100?'달성! 🎉':''}</div>
+        ${ps.top?'':`<div class="bar" style="margin-top:10px;background:rgba(255,255,255,.12)"><i style="width:${ps.exp}%;background:linear-gradient(90deg,#5B8CFF,#9DE0FF)"></i></div>
+        <div class="goal">승급 경험치 <b class="en">${ps.exp}%</b> · 티어 기간 <b class="en">${Math.min(ps.d,ps.need)}/${ps.need}일</b></div>`}</div>
     </div>
+    ${ps.top?`<div class="card" style="margin-top:12px;display:flex;align-items:center;gap:12px">${emblem(8,40)}<div style="flex:1;font-size:13.5px;line-height:1.5"><b>최고 티어 챌린저!</b><br><span style="color:var(--ink2)">매일 ${P.goal} XP 목표로 실력을 유지해요</span></div></div>`:
+      ps.ready?`<button class="btn btn-primary" style="margin-top:12px;background:linear-gradient(135deg,#FF8A3D,#FF5A5F);box-shadow:0 8px 20px rgba(255,90,95,.35)" onclick="go('promoIntro')">⚔️ ${TIERS[ps.next].ko} 승급전 도전하기</button>`:
+      `<button class="card" style="margin-top:12px;display:flex;align-items:center;gap:12px;width:100%;text-align:left" onclick="tierRules()">${emblem(ps.next,40)}<div style="flex:1;font-size:13px;line-height:1.55"><b style="font-size:14px">다음 티어 ${TIERS[ps.next].ko} 승급전까지</b><br><span style="color:var(--muted);font-size:12px">오늘의 단어 ${tW}개 + 문장 ${tS}개를 끝내면 하루 목표 달성!</span><br>
+        <span style="color:${ps.expReady?'var(--mint)':'var(--ink2)'}">${ps.expReady?'✓':'○'} 승급 경험치 100% (지금 ${ps.exp}% · 목표 달성 시 +${P.exp}%)</span><br>
+        <span style="color:${ps.daysReady?'var(--mint)':'var(--ink2)'}">${ps.daysReady?'✓':'○'} 최소 기간 ${ps.need}일 (${Math.max(0,ps.need-ps.d)}일 남음)</span>
+        ${ps.cooldown?'<br><span style="color:var(--red)">✕ 오늘은 승급전에 실패해서 내일 재도전할 수 있어요</span>':''}</div><span style="color:var(--muted)">ⓘ</span></button>`}
+    ${TEST_MODE&&!ps.top?`<button class="toggle" style="margin-top:8px;width:100%" onclick="devNextDay()">🧪 테스트용: 하루 지나기 + 오늘의 목표 달성 처리</button>`:''}
     <div class="grid">
       <button class="menu" style="background:var(--coral-soft)" onclick="go('word')"><span class="ic" style="color:var(--coral)">${I.word}</span><b>단어 공부</b><small>오늘의 ${GROUPS_SHORT[S.wordGroup??groupForTier(S.tier)]} 단어 10개<br>매일 새로 바뀌어요</small></button>
       <button class="menu" style="background:var(--violet-soft)" onclick="go('sent')"><span class="ic" style="color:var(--violet)">${I.sent}</span><b>문장 공부</b><small>오늘의 실전 문장 10개<br>매일 새로 바뀌어요</small></button>
@@ -966,7 +1165,7 @@ function home(){
         <span class="tx"><b>광고 보고 포인트 받기</b><small>포인트로 워디 옷·모자를 살 수 있어요 · 오늘 ${adLeft()}회 남음</small></span><span style="font-size:22px;color:#D99A00">→</span></button>
       <button class="menu wide" style="background:#fff;box-shadow:var(--shadow)" onclick="go('test')">
         <span class="ic" style="background:#FFF3D6;color:#D99A00">${I.trophy}</span>
-        <span class="tx"><b>${S.tested?'레벨테스트 다시 보기':'레벨테스트 보기'}</b><small>아이언부터 챌린저까지, 내 티어 확인</small></span><span style="font-size:22px;color:var(--muted)">→</span></button>
+        <span class="tx"><b>${S.tested?'실력 진단 테스트':'레벨테스트 보기'}</b><small>${S.tested?'지금 내 실력 확인 (티어는 그대로)':'아이언부터 챌린저까지, 내 티어 확인'}</small></span><span style="font-size:22px;color:var(--muted)">→</span></button>
     </div>
     <div class="sec-title">나의 학습</div>
     <div class="stat-row">
@@ -1015,23 +1214,25 @@ Return ONLY a JSON array, no markdown: [{"en":"sentence","ko":"자연스러운 �
 }
 function word(){ studyScreen('word') }
 function sent(){ studyScreen('sent') }
-function studyScreen(mode){
+function studyScreen(mode,auto=true){
   const isW=mode==='word'; S.lastStudy=mode;
   const gKey=isW?'wordGroup':'sentGroup';
-  if(S[gKey]==null) S[gKey]=groupForTier(S.tier);
+  const maxG=groupForTier(S.tier);
+  if(S[gKey]==null||S[gKey]>maxG) S[gKey]=maxG;
   const g=S[gKey]; const list=getList(mode,g); const src=LSRC[mode][g];
   let idx=isW?wIdx:sIdx; if(idx>=list.length) idx=0;
   const it=list[idx]; CUR=it; const key=it.en||it.w;
   const target=isW?it.w:it.en;
   const isKnown=isW?!!S.known[it.w]:!!S.sentDone[key];
-  setScreen(`<div class="top"><div class="seg"><button class="${isW?'on':''}" onclick="go('word')">단어</button><button class="${isW?'':'on'}" onclick="go('sent')">문장</button></div><div style="flex:1"></div><button class="toggle" onclick="voiceSettings()">🎙 목소리</button></div>
-  <div class="chips">${GROUPS.map((x,k)=>`<button class="chip ${k===g?'on':''}" onclick="setGroup('${mode}',${k})">${x}</button>`).join('')}</div>
+  setScreen(`<div class="top"><div class="seg"><button class="${isW?'on':''}" onclick="go('word')">단어</button><button class="${isW?'':'on'}" onclick="go('sent')">문장</button></div><div style="flex:1"></div><button class="toggle ${S.autoFlow!==false?'on':''}" onclick="S.autoFlow=(S.autoFlow===false);save();toast(S.autoFlow?'🔁 듣기가 끝나면 마이크가 자동으로 켜져요':'자동 말하기를 껐어요');studyScreen('${mode}',false)">🔁 자동</button><button class="toggle" onclick="voiceSettings()">🎙</button></div>
+  <div class="chips">${GROUPS.map((x,k)=>k>maxG?`<button class="chip" style="opacity:.55" onclick="toast('🔒 ${TIERS[GROUP_MIN_TIER[k]].ko} 티어부터 열려요.<br>승급전으로 티어를 올려 보세요!')">🔒 ${x}</button>`:`<button class="chip ${k===g?'on':''}" onclick="setGroup('${mode}',${k})">${x}</button>`).join('')}</div>
   <div class="study">
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <div style="flex:1;background:linear-gradient(135deg,#E2EBFF,#DFF3FC);border-radius:16px;padding:10px 14px;font-size:13px;line-height:1.4"><b>📅 ${todayLabel()} 오늘의 ${isW?'단어':'문장'} ${DAILY_N}개</b><br><span style="color:var(--muted);font-size:12px">${GROUPS_SHORT[g]} 단계 · 내일은 새로운 ${isW?'단어':'문장'}로 바뀌어요</span></div>
       <button class="chip" style="align-self:center" onclick="reshuffle('${mode}')">🔀 섞기</button>
       ${src==='ai'?`<button class="chip" onclick="baseList('${mode}')">기본</button>`:''}
     </div>
+    ${(()=>{const c=Math.min(dailyCount(mode),dailyTarget(mode)),tg=dailyTarget(mode);return `<div class="day-prog"><span>오늘의 ${isW?'단어':'문장'}</span><div class="bar"><i style="width:${c/tg*100}%"></i></div><b class="en">${c}/${tg}</b>${c>=tg?' ✅':''}</div>`})()}
     <div class="wcard">
       <span class="count en">${idx+1} / ${list.length}${src==='ai'?' · ✨AI':''}</span>
       <button class="navar l" onclick="moveStudy('${mode}',-1)" aria-label="이전">‹</button>
@@ -1049,15 +1250,13 @@ function studyScreen(mode){
         <div class="ex" style="text-align:center"><span class="pos">TIP</span>${esc(it.tip)}</div>
       `}
       <div class="play-row">
-        <button class="pbtn" onclick="speak(${isW?'CUR.w':'CUR.en'})">${I.spk}듣기</button>
-        <button class="pbtn alt" onclick="speak(${isW?'CUR.w':'CUR.en'},true)">천천히</button>
-        ${isW&&it.ex?`<button class="pbtn alt" onclick="speak(CUR.ex)">예문 듣기</button>`:''}
+        <button class="pbtn" onclick="speakThenMic(${isW?'CUR.w':'CUR.en'})">${I.spk}듣기</button>
+        <button class="pbtn alt" onclick="speakThenMic(${isW?'CUR.w':'CUR.en'},true)">천천히</button>
+        ${isW&&it.ex?`<button class="pbtn alt" onclick="sayIt(CUR.ex)">예문 듣기</button>`:''}
       </div>
     </div>
     <div class="speak-zone">
       <div class="mic-row"><button class="mic" data-mic id="micBtn">${I.mic}</button><div class="mic-tx" id="micState"></div></div>
-      <div class="or">말하기가 어렵다면 입력으로</div>
-      <form class="type-row" id="typeForm"><input data-typein id="typeIn" placeholder="${isW?'단어 철자를 입력해요':'문장을 입력해요'}" autocomplete="off" autocapitalize="off" spellcheck="false"><button>확인</button></form>
       <div id="res"></div>
     </div>
   </div>`, mode);
@@ -1069,35 +1268,108 @@ function studyScreen(mode){
   $('#knownBtn').onclick=()=>{
     if(isW){ if(S.known[it.w]) delete S.known[it.w]; else S.known[it.w]=1; }
     else { if(S.sentDone[key]) delete S.sentDone[key]; else S.sentDone[key]=1; }
-    save(); studyScreen(mode);
+    save(); studyScreen(mode,false);
   };
-  let heard='';
+  let heard='', tries=0;
   const evaluate=(said,how)=>{
     if(!said.trim()){toast('인식된 말이 없어요. 다시 시도해 주세요');return}
     let sc,hl='';
     if(isW) sc=wordScore(target,said);
     else { const r=sentScore(target,said); sc=r.score; hl=r.html; }
     const [cls,title,tip]=verdict(sc);
-    let xp=0;
-    if(sc>=70){ xp=isW?5:10; addXP(xp);
+    const pass=sc>=70;
+    if(pass){
+      markPassed(mode,key);
       if(isW && sc>=90) S.known[it.w]=1; if(!isW && sc>=80) S.sentDone[key]=1; save();
       const kb=$('#knownBtn'); const nowK=isW?!!S.known[it.w]:!!S.sentDone[key];
       if(kb && nowK){kb.classList.add('on');kb.textContent='✓ '+(isW?'외웠어요':'통과')}
-    }
+    } else tries++;
     if(!isW && hl) $('#sentText').innerHTML=hl;
-    $('#res').innerHTML=`<div class="res ${cls}"><div class="sc">${sc}</div><div class="msg"><b>${title}</b>${how==='voice'?'내 발음: ':'입력: '}<span class="en" style="font-weight:600">"${esc(said)}"</span><br>${tip}${xp?` <b style="display:inline;color:var(--coral)">+${xp}XP</b>`:''}</div></div>`;
+    $('#res').innerHTML=`<div class="res ${cls}"><div class="sc">${sc}</div><div class="msg"><b>${title}</b>${how==='voice'?'내 발음: ':'입력: '}<span class="en" style="font-weight:600">"${esc(said)}"</span><br>${tip}</div></div>`;
+    // 플로팅 점수
+    const c=Math.min(dailyCount(mode),dailyTarget(mode)), tg=dailyTarget(mode);
+    const willNext = pass || tries>=2;
+    const f=document.createElement('div'); f.className='float-score '+cls;
+    f.innerHTML=`<div class="n">${sc}</div><div class="t">${title}</div><div class="s">${pass?`오늘 ${c}/${tg} · 다음 ${isW?'단어':'문장'}로 →`:willNext?'다음으로 넘어가요 →':'한 번 더 들어 보고 따라 해요 🔁'}</div>`;
+    const wc=document.querySelector('.wcard'); const old=wc&&wc.querySelector('.float-score'); if(old) old.remove(); if(wc) wc.appendChild(f);
+    const pr=document.querySelector('.day-prog'); if(pr){ pr.querySelector('i').style.width=(c/tg*100)+'%'; pr.querySelector('b').textContent=c+'/'+tg; }
+    setTimeout(()=>{ if(CUR!==it) return; f.classList.add('out');
+      setTimeout(()=>{ if(CUR!==it) return;
+        if(willNext) nextCard(mode);
+        else { f.remove(); resetCard(); if(LIVE.on) liveSpeak(target); else if(S.autoFlow!==false) speakThenMic(target); }
+      },380);
+    },1500);
   };
-  $('#micBtn').onclick=()=>{
-    if(dictState!=='listening') { heard=''; $('#res').innerHTML=''; }
-    micStart({
-      partial:t=>{const l=$('#liveTx'); if(l) l.textContent=(heard+' '+t).trim()},
-      final:t=>{heard=(heard+' '+t).trim(); const l=$('#liveTx'); if(l) l.textContent=heard},
-      idle:()=>{ if(heard) evaluate(heard,'voice'); dictTarget=null; }
-    });
+  // ===== 연속 연습 모드: 마이크는 계속 켜 두고, 이 카드에서 들린 말만 채점 =====
+  let buf='', evalT=null, locked=false;
+  const resetCard=()=>{ buf=''; locked=false; clearTimeout(evalT); const l=$('#liveTx'); if(l) l.textContent='따라 말해 보세요'; };
+  const finish=()=>{ if(locked||!buf) return; locked=true; clearTimeout(evalT); evaluate(buf,'voice'); };
+  window._resetCard=resetCard;
+  LIVE.card={
+    partial:t=>{ if(locked) return; const l=$('#liveTx'); if(l) l.textContent=(buf+' '+t).trim(); if(!isW){ clearTimeout(evalT); evalT=setTimeout(finish,2200); } },
+    final:t=>{ if(locked) return; buf=(buf+' '+t).trim(); const l=$('#liveTx'); if(l) l.textContent=buf;
+      const enough=isW||buf.split(/\s+/).length>=Math.max(1,Math.ceil(target.split(/\s+/).length*0.6));
+      clearTimeout(evalT); evalT=setTimeout(finish, enough?(isW?150:700):1600); }
   };
-  $('#typeForm').onsubmit=e=>{e.preventDefault();const v=$('#typeIn').value;if(!v.trim()){toast('입력해 주세요');return}evaluate(v,'type')};
+  window._studyMic=(autoStart)=>{ if(LIVE.on){ if(!autoStart) stopLive(); return; } startLive(autoStart); };
+  $('#micBtn').onclick=()=>window._studyMic(false);
+  // 카드에 들어오면: 자동 듣기 → 끝나면 마이크 자동 켜기
+  if(auto&&S.autoFlow!==false&&!dailyState()[isW?'w':'s'][key]){ const me=it; setTimeout(()=>{ if(CUR===me&&document.getElementById('micBtn')) speakThenMic(target); },450); }
+  refreshMicUI();
+
 }
-function setGroup(mode,k){ stopAudio(); if(mode==='word'){S.wordGroup=k;wIdx=0}else{S.sentGroup=k;sIdx=0} save(); studyScreen(mode) }
+function setGroup(mode,k){ if(k>groupForTier(S.tier)){toast('🔒 아직 열리지 않은 단계예요');return;} stopAudio(true); if(mode==='word'){S.wordGroup=k;wIdx=0}else{S.sentGroup=k;sIdx=0} save(); studyScreen(mode) }
+function nextCard(mode){
+  // 오늘 아직 통과하지 못한 다음 카드로 이동 (다 끝냈으면 완료 안내)
+  const g=mode==='word'?S.wordGroup:S.sentGroup, L=getList(mode,g), cur=mode==='word'?wIdx:sIdx, done=dailyState()[mode==='word'?'w':'s'];
+  let j=-1; for(let st=1;st<=L.length;st++){ const c=L[(cur+st)%L.length]; if(!done[c.en||c.w]){ j=(cur+st)%L.length; break; } }
+  if(j<0){ toast(`🎉 오늘의 ${mode==='word'?'단어':'문장'}를 모두 끝냈어요!${!dailyState()[mode==='word'?'sAward':'wAward']?`<br>${mode==='word'?'문장':'단어'}도 마저 끝내면 오늘의 목표 달성!`:''}`); j=(cur+1)%L.length; }
+  if(mode==='word') wIdx=j; else sIdx=j; studyScreen(mode);
+}
+const IS_IOS_DEV=/iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(/Macintosh/.test(navigator.userAgent||'')&&'ontouchend' in document);
+function waitSpeechEnd(maxMs=4000){
+  return new Promise(res=>{ const t0=Date.now(); const tick=()=>{ let busy=false; try{ busy='speechSynthesis' in window&&speechSynthesis&&(speechSynthesis.speaking||speechSynthesis.pending); }catch(e){}
+    if(!busy||Date.now()-t0>maxMs) res(); else setTimeout(tick,120); }; tick(); });
+}
+// ===== 연속 연습 모드 (마이크 상시 켜짐) =====
+const LIVE={on:false,gateUntil:0,card:null};
+function sayIt(text,slow){ return LIVE.on?liveSpeak(text,slow):speak(text,slow); }
+function liveSpeak(text,slow){
+  // 마이크가 켜진 채로 발음을 들려주고, 재생 중에 들린 소리(스피커 소리)는 채점에서 빼요
+  LIVE.gateUntil=Infinity; const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">끝나면 바로 따라 말해요</span>';
+  return Promise.resolve(browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{ LIVE.gateUntil=Date.now()+(IS_IOS_DEV?900:600); setTimeout(refreshMicUI,IS_IOS_DEV?900:600); });
+}
+const liveHandler={
+  partial:t=>{ if(Date.now()<LIVE.gateUntil) return; LIVE.card&&LIVE.card.partial(t); },
+  final:t=>{ if(Date.now()<LIVE.gateUntil) return; LIVE.card&&LIVE.card.final(t); },
+  idle:()=>{ if(!LIVE.on) return;
+    // 음성 인식이 중간에 끊기면 자동으로 다시 켜요
+    setTimeout(()=>{ if(!LIVE.on||dictState==='listening') return; dictTarget=liveHandler;
+      DICT.start().catch(()=>{ LIVE.on=false; refreshMicUI(); micNudge('마이크가 꺼졌어요. 눌러서 다시 시작해요'); }); },300); }
+};
+function startLive(auto){
+  if(!DICT){ micStart(null,auto); return; }
+  if(LIVE.on) return; LIVE.on=true; dictTarget=liveHandler; LIVE.gateUntil=Date.now()+250;
+  const mb=document.getElementById('micBtn'); if(mb) mb.classList.remove('nudge');
+  try{ if(TTS&&TTS.stop) TTS.stop(); }catch(e){}
+  DICT.start().then(()=>refreshMicUI()).catch(e=>{ LIVE.on=false; const c=e&&e.code; refreshMicUI();
+    if(c==='not_granted') toast('마이크 권한이 없어요. 브라우저 설정에서 마이크를 허용해 주세요');
+    else micNudge(auto?'':'마이크를 켜지 못했어요. 다시 눌러 주세요'); });
+  refreshMicUI();
+}
+function stopLive(){ LIVE.on=false; if(DICT&&dictState==='listening'){ dictTarget=null; DICT.stop().catch(()=>{}); } refreshMicUI(); }
+function speakThenMic(text,slow){
+  if(LIVE.on) return liveSpeak(text,slow);
+  const cur=CUR; window._autoTry={cur,n:0};
+  return Promise.resolve(speak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{
+    if(S.autoFlow===false||CUR!==cur||dictState==='listening'||!document.getElementById('micBtn')) return;
+    setTimeout(()=>{ if(CUR===cur&&window._studyMic&&document.getElementById('micBtn')) window._studyMic(true); },IS_IOS_DEV?750:350);
+  });
+}
+function micNudge(msg){
+  const b=document.getElementById('micBtn'); if(b){ b.classList.add('nudge'); }
+  const st=document.getElementById('micState'); if(st) st.innerHTML=`<b>🎙 마이크를 눌러 말해 보세요</b>${msg||'버튼을 누르면 바로 들어요'}`;
+}
 function moveStudy(mode,d){
   const g=mode==='word'?S.wordGroup:S.sentGroup; const n=getList(mode,g).length;
   if(mode==='word') wIdx=(wIdx+d+n)%n; else sIdx=(sIdx+d+n)%n;
@@ -1280,11 +1552,11 @@ function resetAll(){ try{localStorage.removeItem(LS)}catch(e){} location.reload(
 let G=null;
 const BLK_COLORS=['#2F6BFF','#0EA5E9','#22B39C','#FF8A5C','#8B6CFF','#FFB020','#EF5DA8'];
 function wordPool(maxLen){
-  const g=S.wordGroup??groupForTier(S.tier);
+  const maxG=groupForTier(S.tier); const g=Math.min(S.wordGroup??maxG,maxG);
   const ok=x=>/^[a-z]+$/i.test(x.w)&&x.w.length<=maxLen;
   let pool=getList('word',g).filter(ok);
   const seen=new Set(pool.map(x=>x.w));
-  for(const k of [g,Math.max(0,g-1),Math.min(3,g+1),0,1,2,3]) WORDS[k].forEach(x=>{if(ok(x)&&!seen.has(x.w)){seen.add(x.w);pool.push(x)}});
+  for(const k of [g,Math.max(0,g-1),0,1,2,3].filter(k=>k<=maxG)) WORDS[k].forEach(x=>{if(ok(x)&&!seen.has(x.w)){seen.add(x.w);pool.push(x)}});
   return shuffle(pool.slice(0,Math.max(12,getList('word',g).length)));
 }
 function game(){
