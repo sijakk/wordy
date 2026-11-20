@@ -15,6 +15,8 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
+<meta name="google-adsense-account" content="ca-pub-4846724022916312">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4846724022916312" crossorigin="anonymous" data-adbreak-test="on"></script>
 <title>워디 WORDY - 언어 공부, 이제 워디와 함께</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -1531,17 +1533,19 @@ function wear(k){
 const AD_MIN=1, AD_MAX=5, AD_LIMIT=5, AD_SEC=5;
 // ===== 구글 광고 설정 =====
 // 애드센스 승인 후 아래 값을 본인 퍼블리셔 ID로 바꾸세요 (애드센스 > 계정 > 설정 > 계정 정보)
-const ADSENSE_CLIENT='ca-pub-XXXXXXXXXXXXXXXX';
+const ADSENSE_CLIENT='ca-pub-4846724022916312';
 // true: 구글 테스트 광고 / false: 실제 광고 (보상형 광고 승인 후 false로)
 const ADS_TEST_MODE=true;
 let ADS_ON=false, ADS_READY=false;
 (function loadAds(){
   if(!/^ca-pub-\d{10,}$/.test(ADSENSE_CLIENT)) return; // 아직 ID가 없으면 데모 광고로 동작
   ADS_ON=true;
-  const sc=document.createElement('script'); sc.async=true; sc.crossOrigin='anonymous';
-  sc.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+ADSENSE_CLIENT;
-  if(ADS_TEST_MODE) sc.setAttribute('data-adbreak-test','on');
-  document.head.appendChild(sc);
+  if(!document.querySelector('script[src*="adsbygoogle.js"]')){
+    const sc=document.createElement('script'); sc.async=true; sc.crossOrigin='anonymous';
+    sc.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+ADSENSE_CLIENT;
+    if(ADS_TEST_MODE) sc.setAttribute('data-adbreak-test','on');
+    document.head.appendChild(sc);
+  }
   window.adsbygoogle=window.adsbygoogle||[];
   window.adBreak=window.adConfig=function(o){ window.adsbygoogle.push(o); };
   window.adConfig({ preloadAdBreaks:'on', sound:'on', onReady:()=>{ ADS_READY=true; } });
