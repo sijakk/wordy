@@ -1,0 +1,17 @@
+{
+  "name": "워디 WORDY - Your AI Word Buddy",
+  "short_name": "워디",
+  "description": "언어 공부, 이제 워디와 함께. 레벨테스트, 단어·문장 듣고 말하기, 단어 게임, 워디 꾸미기",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F7FF",
+  "theme_color": "#2F6BFF",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
