@@ -28,8 +28,10 @@
   --r:22px; --shadow:0 6px 24px rgba(20,45,100,.08);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
-body{font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink);background:#E3EAF6;display:flex;justify-content:center;align-items:center}
+html,body{min-height:100%}
+body{font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink);background:#E3EAF6;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100dvh}
+.app{flex-shrink:0}
+@media(min-width:500px){body{padding-top:4dvh}}
 .en{font-family:'Outfit','Noto Sans KR',sans-serif}
 button{font:inherit;color:inherit;border:none;background:none;cursor:pointer}
 input,textarea{font:inherit;color:inherit}
@@ -341,6 +343,17 @@ input,textarea{font:inherit;color:inherit}
 .list button{display:flex;width:100%;padding:16px 18px;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;border-bottom:1px solid var(--line);text-align:left}
 .list button:last-child{border-bottom:none}
 .list button span{color:var(--muted);font-size:13px}
+
+/* Site footer (웹사이트 소개·정책 링크) */
+.site-foot{width:100%;max-width:720px;padding:28px 20px 36px;color:var(--ink2);font-size:13.5px;line-height:1.7}
+.site-foot h2{font-size:16px;color:var(--ink);margin-bottom:6px}
+.site-foot p{margin-bottom:14px}
+.site-foot ul{list-style:none;display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:14px}
+.site-foot a{color:var(--coral);text-decoration:none}
+.site-foot a:hover{text-decoration:underline}
+.site-foot .policy a{color:var(--muted)}
+.site-foot small{color:var(--muted)}
+@media (display-mode: standalone){.site-foot{display:none}}
 </style>
 </head>
 <body>
@@ -349,6 +362,30 @@ input,textarea{font:inherit;color:inherit}
   <nav class="tabbar hidden" id="tabbar"></nav>
   <div class="toast" id="toast"></div>
 </div>
+
+<footer class="site-foot">
+  <h2>워디(WORDY) – 듣고 따라 말하는 영어 학습</h2>
+  <p>워디는 레벨테스트로 내 영어 수준(아이언~챌린저 9티어)을 확인하고, 레벨에 맞는 오늘의 단어 10개와 문장 10개를 원어민 발음으로 듣고 바로 따라 말하며 익히는 무료 영어 학습 서비스입니다. 블록 단어 만들기, 단어 찾기 퍼즐, 60초 스피드 퀴즈 같은 단어 게임으로 복습하고, 학습 보상으로 하늘색 곰 캐릭터 워디를 꾸밀 수 있습니다.</p>
+  <h2>무료 영어 학습 자료</h2>
+  <ul>
+    <li><a href="learn/basic-english-words.html">기초 영어 단어 60개</a></li>
+    <li><a href="learn/travel-english.html">해외여행 필수 영어 표현</a></li>
+    <li><a href="learn/confusing-pronunciation.html">R/L·F/P·B/V·TH 발음 구분법</a></li>
+    <li><a href="learn/memorize-words-method.html">영어 단어 암기법</a></li>
+    <li><a href="learn/phrasal-verbs.html">자주 쓰는 구동사 30개</a></li>
+    <li><a href="learn/confusing-word-pairs.html">헷갈리는 영어 단어 20쌍</a></li>
+    <li><a href="learn/cafe-restaurant-english.html">카페·식당 주문 영어</a></li>
+    <li><a href="learn/english-message-expressions.html">영어 이메일·메시지 표현</a></li>
+    <li><a href="learn/">전체 학습 자료 보기 →</a></li>
+  </ul>
+  <ul class="policy">
+    <li><a href="about.html">서비스 소개</a></li>
+    <li><a href="privacy.html">개인정보처리방침</a></li>
+    <li><a href="terms.html">이용약관</a></li>
+    <li><a href="contact.html">문의하기</a></li>
+  </ul>
+  <small>© 2026 WORDY · Your AI Word Buddy</small>
+</footer>
 
 <script>
 /* =========================================================
@@ -1615,7 +1652,10 @@ function me(){
       <button onclick="voiceSettings()">워디 목소리 <span id="pvVoice">${VOICES[S.gender].ko}</span></button>
       <button onclick="go('name')">이름 바꾸기 <span>${esc(S.name)}</span></button>
       <button onclick="toast('일본어 · 중국어 · 스페인어가 곧 추가돼요!')">학습 언어 <span>English 🇺🇸</span></button>
+      <button onclick="location.href='learn/'">영어 학습 자료 <span>→</span></button>
       <button onclick="location.href='privacy.html'">개인정보처리방침 <span>→</span></button>
+      <button onclick="location.href='terms.html'">이용약관 <span>→</span></button>
+      <button onclick="location.href='contact.html'">문의하기 <span>→</span></button>
       <button onclick="confirmBox('학습 기록을 초기화할까요?','티어, XP, 외운 단어 등 모든 기록이 삭제되고 첫 화면으로 돌아가요.','초기화',resetAll)">학습 기록 초기화 <span>→</span></button>
     </div>
     <div style="text-align:center;margin-top:28px;color:var(--muted);font-size:12px;line-height:1.7"><b class="en" style="font-size:16px;color:var(--coral);letter-spacing:.06em">WORDY</b><br>Your AI Word Buddy<br>언어 공부, 이제 워디와 함께.</div>
