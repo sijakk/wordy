@@ -798,12 +798,18 @@ function webDictation(){
   let rec=null, cbP=()=>{}, cbF=()=>{}, cbS=()=>{};
   return { onPartial(f){cbP=f}, onFinal(f){cbF=f}, onState(f){cbS=f},
     start(){ return new Promise((res,rej)=>{ try{
-      rec=new SR(); rec.lang='en-US'; rec.interimResults=true; rec.continuous=!IS_MOBILE_DEV; rec.maxAlternatives=1;
-      rec.onstart=()=>{cbS({state:'listening'});res()};
+      // 아이폰 사파리: 인식기를 매번 새로 만들면 몇 번 뒤 마이크가 먹통이 되는 버그가 있어서 하나를 계속 써요
+      const reuse=IS_IOS_DEV&&rec&&!rec.__dead;
+      if(!reuse){ try{ if(rec) rec.abort(); }catch(e){} rec=new SR(); }
+      const me=rec; let started=false;
+      rec.lang='en-US'; rec.interimResults=true; rec.continuous=!IS_MOBILE_DEV; rec.maxAlternatives=1;
+      // 2.5초 안에 마이크가 안 켜지면 멈춘 걸로 보고 새로 만들 준비 (다음엔 버튼을 눌러 시작)
+      const wd=(IS_IOS_DEV&&!/WordyApp/.test(navigator.userAgent||''))&&setTimeout(()=>{ if(started) return; me.__dead=true; try{ me.abort(); }catch(e){} cbS({state:'idle',reason:'stall'}); rej({code:'stall'}); },2500);
+      rec.onstart=()=>{ started=true; clearTimeout(wd); cbS({state:'listening'});res()};
       rec.onresult=e=>{ let interim=''; for(let i=e.resultIndex;i<e.results.length;i++){ const r=e.results[i]; if(r.isFinal) cbF({text:r[0].transcript}); else interim+=r[0].transcript; } if(interim) cbP({text:interim}); };
       rec.onerror=e=>{ if(e.error==='not-allowed'||e.error==='service-not-allowed') rej({code:'not_granted'}); else if(e.error==='audio-capture') toast('마이크를 찾을 수 없어요. 마이크 권한을 확인해 주세요'); else if(e.error==='network') toast('음성 인식에 인터넷 연결이 필요해요'); cbS({state:'idle',reason:e.error}); };
-      rec.onend=()=>cbS({state:'idle',reason:'stopped'});
-      rec.start(); }catch(err){ rej(err); } }); },
+      rec.onend=()=>{ clearTimeout(wd); if(me===rec) cbS({state:'idle',reason:'stopped'}); };
+      rec.start(); }catch(err){ try{ if(rec) rec.__dead=true; }catch(e){} rej(err); } }); },
     stop(){ try{ rec&&rec.stop(); }catch(e){} return Promise.resolve(); } };
 }
 capUse('dictation').then(d=>{
@@ -1396,8 +1402,13 @@ function studyScreen(mode,auto=true){
     let sc,hl='';
     if(isW) sc=wordScore(target,said);
     else { const r=sentScore(target,said); sc=r.score; hl=r.html; }
-    const [cls,title,tip]=verdict(sc);
-    const pass=sc>=70;
+    let [cls,title,tip]=verdict(sc);
+    let pass=sc>=70;
+    // 같은 카드에서 4번 실패하면, 5번째 도전은 무조건 통과 (휴대폰 인식이 유난히 안 맞는 발음 대비)
+    const FA=(window.__wordyFails=window.__wordyFails||{}), fk=mode+':'+key;
+    if(!pass){ FA[fk]=(FA[fk]||0)+1; if(FA[fk]>=5){ pass=true; FA[fk]=0; sc=Math.max(sc,70); [cls,title,tip]=['good','5번 도전 성공! 👏','끝까지 해냈어요. 이 발음은 통과로 기록했어요.']; } }
+    else FA[fk]=0;
+    const failsNow=FA[fk]||0;
     if(pass){
       markPassed(mode,key);
       if(isW && sc>=90) S.known[it.w]=1; if(!isW && sc>=80) S.sentDone[key]=1; save();
@@ -1408,9 +1419,9 @@ function studyScreen(mode,auto=true){
     $('#res').innerHTML=`<div class="res ${cls}"><div class="sc">${sc}</div><div class="msg"><b>${title}</b>${how==='voice'?'내 발음: ':'입력: '}<span class="en" style="font-weight:600">"${esc(said)}"</span><br>${tip}</div></div>`;
     // 플로팅 점수
     const c=Math.min(dailyCount(mode),dailyTarget(mode)), tg=dailyTarget(mode);
-    const willNext = pass || tries>=2;
+    const willNext = pass; // 통과할 때까지(최대 5번) 같은 카드에서 다시 도전
     const f=document.createElement('div'); f.className='float-score '+cls;
-    f.innerHTML=`<div class="n">${sc}</div><div class="t">${title}</div><div class="s">${REVIEW[mode]?(pass||willNext?`복습 · 다음 ${isW?'단어':'문장'}로 →`:'한 번 더 들어 보고 따라 해요 🔁'):pass?`오늘 ${c}/${tg} · 다음 ${isW?'단어':'문장'}로 →`:willNext?'다음으로 넘어가요 →':'한 번 더 들어 보고 따라 해요 🔁'}</div>`;
+    f.innerHTML=`<div class="n">${sc}</div><div class="t">${title}</div><div class="s">${REVIEW[mode]?(pass||willNext?`복습 · 다음 ${isW?'단어':'문장'}로 →`:'한 번 더 들어 보고 따라 해요 🔁'):pass?`오늘 ${c}/${tg} · 다음 ${isW?'단어':'문장'}로 →`:willNext?'다음으로 넘어가요 →':`한 번 더 들어 보고 따라 해요 🔁 (${failsNow}/5)${failsNow>=4?' · 다음 도전은 통과!':''}`}</div>`;
     const wc=document.querySelector('.wcard'); const old=wc&&wc.querySelector('.float-score'); if(old) old.remove(); if(wc) wc.appendChild(f);
     const pr=document.querySelector('.day-prog'); if(pr){ pr.querySelector('i').style.width=(c/tg*100)+'%'; pr.querySelector('b').textContent=c+'/'+tg; }
     setTimeout(()=>{ if(CUR!==it) return; f.classList.add('out');
@@ -1536,12 +1547,13 @@ function startLive(auto){
   try{ if(TTS&&TTS.stop) TTS.stop(); }catch(e){}
   DICT.start().then(()=>refreshMicUI()).catch(e=>{ LIVE.on=false; const c=e&&e.code; refreshMicUI();
     if(c==='not_granted') toast('마이크 권한이 없어요. 브라우저 설정에서 마이크를 허용해 주세요');
+    else if(c==='stall') micNudge('마이크가 잠깐 멈췄어요. 버튼을 눌러 주세요');
     else micNudge(auto?'':'마이크를 켜지 못했어요. 다시 눌러 주세요'); });
   refreshMicUI();
 }
 function stopLive(){ LIVE.on=false; if(DICT&&dictState==='listening'){ dictTarget=null; DICT.stop().catch(()=>{}); } refreshMicUI(); }
 // 휴대폰은 기본으로 '눌러서 말하기': 마이크가 저절로 켜졌다 꺼졌다 하지 않아요 (소리·끊김 방지)
-function TAP(){ return IS_MOBILE_DEV && S.micTap===true; }
+function TAP(){ return IS_MOBILE_DEV && (S.micTap===true || (S.micTap==null && IS_IOS_DEV && !/WordyApp/.test(navigator.userAgent||''))); }
 function speakThenMic(text,slow){
   if(LIVE.on) return liveSpeak(text,slow);
   const cur=CUR; window._autoTry={cur,n:0};
@@ -1549,7 +1561,7 @@ function speakThenMic(text,slow){
   return Promise.resolve(speak(text,slow)).then(()=>waitSpeechEnd()).then(()=>waitAudioEnd()).then(()=>{
     if(TAP()){ if(CUR===cur&&!LIVE.on&&document.getElementById('micBtn')) micNudge('발음을 들었으면 버튼을 누르고 따라 말해요'); return; }
     if(S.autoFlow===false||CUR!==cur||dictState==='listening'||!document.getElementById('micBtn')) return;
-    setTimeout(()=>{ if(CUR===cur&&!LIVE.on&&window._studyMic&&document.getElementById('micBtn')) window._studyMic(true); },IS_MOBILE_DEV?350:150);
+    setTimeout(()=>{ if(CUR===cur&&!LIVE.on&&window._studyMic&&document.getElementById('micBtn')) window._studyMic(true); },IS_IOS_DEV?600:IS_MOBILE_DEV?350:150);
   });
 }
 function micNudge(msg){
