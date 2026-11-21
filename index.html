@@ -176,6 +176,13 @@ input,textarea{font:inherit;color:inherit}
 .wcard .known.on{background:var(--mint-soft);color:var(--mint)}
 .wcard .word{font-size:40px;font-weight:900;margin-top:20px;letter-spacing:-.01em;word-break:break-word}
 .wcard .sent{font-size:23px;font-weight:800;margin-top:26px;line-height:1.45}
+/* 말하는 대로 채워지는 글자 */
+.wcard .lt,.wcard .wd{transition:color .25s ease}
+.wcard.speaking .lt,.wcard.speaking .wd{color:#C5D1E8}
+.wcard.speaking .lt.pre{color:#8FB0FF}
+.wcard .lt.on,.wcard .wd.on{color:var(--coral)}
+.wcard.speaking .wd.next{text-decoration:underline 3px #BFD0FF;text-underline-offset:6px}
+.wcard.filled .lt,.wcard.filled .wd{color:var(--mint)}
 .wcard .ipa{color:var(--muted);font-size:15px;margin-top:4px}
 .pos{display:inline-block;font-size:12px;font-weight:700;color:var(--violet);background:var(--violet-soft);padding:3px 8px;border-radius:7px;margin-right:6px}
 .meaning{margin-top:14px;font-size:18px;font-weight:700;cursor:pointer;transition:filter .2s}
@@ -928,7 +935,7 @@ function refreshMicUI(){
   const st=document.getElementById('micState');
   if(st){
     if(!DICT) st.innerHTML='<b>이 브라우저에선 말하기를 쓸 수 없어요</b>크롬이나 Safari에서 열면 말하기 연습을 할 수 있어요';
-    else if(LIVE.on) st.innerHTML='<b>🔴 연습 중 · 마이크 켜짐</b><span class="live" id="liveTx">따라 말해 보세요</span><br><span style="font-size:11.5px;color:var(--muted)">인식되면 자동으로 넘어가요 · ■ 누르면 종료</span>';
+    else if(LIVE.on) st.innerHTML='<b>🎙 말해 보세요</b><span class="live" id="liveTx">알아들은 만큼 글자가 채워져요</span><br><span style="font-size:11.5px;color:var(--muted)">인식되면 자동으로 넘어가요 · ■ 누르면 종료</span>';
     else if(dictState==='listening') st.innerHTML='<b>듣고 있어요… 🎙</b><span class="live" id="liveTx">또박또박 말해 보세요</span>';
     else st.innerHTML='<b>🎙 눌러서 연습 시작</b>마이크는 계속 켜져 있고, 따라 말하면 자동으로 넘어가요';
   }
@@ -959,6 +966,31 @@ function setVoice(g){
 // ---------- Scoring ----------
 function norm(s){return (s||'').toLowerCase().replace(/[’‘`]/g,"'").replace(/[^a-z0-9'\s]/g,' ').replace(/\s+/g,' ').trim()}
 function lev(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,i)=>i);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
+// ===== 말하는 대로 글자 채우기 =====
+const fNorm=s=>String(s).toLowerCase().replace(/[’‘`]/g,"'").replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim();
+const fToks=s=>fNorm(s).split(' ').filter(Boolean).map(w=>w.replace(/^'+|'+$/g,''));
+function fLev(a,b){ const m=a.length,n=b.length; if(!m) return n; if(!n) return m; let p=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){ const c=[i]; for(let j=1;j<=n;j++) c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1)); p=c; } return p[n]; }
+const fSim=(a,b)=>a===b?1:1-fLev(a,b)/Math.max(a.length,b.length);
+// 들린 말을 화면의 단어/문장에 칠하고, 다 채워졌는지(true/false) 돌려줘요
+function fillPaint(isW,target,heard){
+  const wc=document.querySelector('.wcard'); if(!wc) return false; const h=fToks(heard);
+  if(isW){
+    const t=fToks(target).join(''); let best=0,pre=0; const cand=h.concat(h.length>1?[h.join('')]:[]);
+    for(const w of cand){ best=Math.max(best,fSim(w,t)); let k=0; while(k<w.length&&k<t.length&&w[k]===t[k]) k++; pre=Math.max(pre,k); }
+    const on=best>=0.8; let li=0;
+    wc.querySelectorAll('.word .lt').forEach((c,i)=>{ const isL=/[a-z]/i.test(c.textContent); if(isL) li++; c.style.transitionDelay=on?(i*35)+'ms':'0ms'; c.classList.toggle('on',on); c.classList.toggle('pre',!on&&isL&&li<=pre); });
+    return on;
+  }
+  const els=[...wc.querySelectorAll('#sentText .wd')]; if(!els.length) return false; const tg=els.map(e=>fToks(e.textContent).join(''));
+  const res=tg.map(()=>0); let j=0;
+  for(const x of h){ let best=-1,bs=0; for(let k=j;k<Math.min(tg.length,j+4);k++){ if(!tg[k]) continue; const sc=fSim(x,tg[k]); if(sc>=0.8&&sc>bs){bs=sc;best=k;} } if(best>=0){ res[best]=1; j=best+1; } }
+  let first=-1; els.forEach((e,i)=>{ const on=res[i]>0||!tg[i]; e.classList.toggle('on',on); if(!on&&first<0) first=i; });
+  els.forEach((e,i)=>e.classList.toggle('next',i===first));
+  return first<0;
+}
+function fillReady(){ const wc=document.querySelector('.wcard'); if(!wc) return; wc.classList.remove('filled'); wc.querySelectorAll('.lt,.wd').forEach(e=>e.classList.remove('on','pre','next')); wc.classList.add('speaking'); }
+function fillOff(){ const wc=document.querySelector('.wcard'); if(wc) wc.classList.remove('speaking'); }
 function wordScore(target,said){
   const t=norm(target),s=norm(said); if(!s) return 0;
   const toks=s.split(' '); if(toks.includes(t)) return 100;
@@ -1324,13 +1356,13 @@ function studyScreen(mode,auto=true){
       <button class="navar r" onclick="moveStudy('${mode}',1)" aria-label="다음">›</button>
       <button class="known ${isKnown?'on':''}" id="knownBtn">${isKnown?'✓ '+(isW?'외웠어요':'통과'):(isW?'외웠어요?':'미통과')}</button>
       ${isW?`
-        <div class="word en" style="padding:0 34px;${it.w.length>10?'font-size:30px;':''}">${esc(it.w)}</div>
+        <div class="word en" style="padding:0 34px;${it.w.length>10?'font-size:30px;':''}">${[...it.w].map(c=>`<span class="lt">${esc(c)}</span>`).join('')}</div>
         <div class="ipa">${esc(it.ipa)}</div>
         <div class="meaning blur" id="mean" title="눌러서 뜻 보기"><span class="pos">${it.pos}</span>${esc(it.ko)}</div>
         <div style="font-size:11.5px;color:var(--muted);margin-top:4px" id="meanHint">뜻을 떠올린 뒤 눌러서 확인해요</div>
         <div class="ex"><div class="e en">${esc(it.ex)}</div><div class="k">${esc(it.exko)}</div></div>
       `:`
-        <div class="sent en" id="sentText" style="padding:0 30px">${esc(it.en)}</div>
+        <div class="sent en" id="sentText" style="padding:0 30px">${it.en.split(' ').map(w=>`<span class="wd">${esc(w)}</span>`).join(' ')}</div>
         <div class="meaning" style="font-size:15.5px;color:var(--ink2);font-weight:600">${esc(it.ko)}</div>
         <div class="ex" style="text-align:center"><span class="pos">TIP</span>${esc(it.tip)}</div>
       `}
@@ -1388,16 +1420,21 @@ function studyScreen(mode,auto=true){
   // ===== 연속 연습 모드: 마이크는 계속 켜 두고, 이 카드에서 들린 말만 채점 =====
   let buf='', evalT=null, locked=false, lastP='';
   const takeP=()=>{ if(lastP){ buf=(buf+' '+lastP).trim(); lastP=''; } };
-  const resetCard=()=>{ buf=''; lastP=''; locked=false; clearTimeout(evalT); const l=$('#liveTx'); if(l) l.textContent='따라 말해 보세요'; };
-  const finish=()=>{ if(locked||!buf) return; locked=true; clearTimeout(evalT); evaluate(buf,'voice'); };
+  const resetCard=()=>{ buf=''; lastP=''; locked=false; clearTimeout(evalT);
+    if(!isW){ const st=$('#sentText'); if(st&&!st.querySelector('.wd')) st.innerHTML=it.en.split(' ').map(w=>`<span class="wd">${esc(w)}</span>`).join(' '); } const l=$('#liveTx'); if(l) l.textContent='알아들은 만큼 글자가 채워져요'; };
+  const finish=()=>{ if(locked||!buf) return; locked=true; clearTimeout(evalT);
+    const wc=document.querySelector('.wcard'); const full=fillPaint(isW,target,buf); if(wc&&full){ wc.classList.add('filled'); }
+    setTimeout(()=>{ fillOff(); evaluate(buf,'voice'); }, full?450:0); };
+  const heardNow=()=>(buf+' '+lastP).trim();
   window._resetCard=resetCard;
   LIVE.card={
-    partial:t=>{ if(locked) return; lastP=t; const l=$('#liveTx'); if(l) l.textContent=(buf+' '+t).trim();
-      clearTimeout(evalT); evalT=setTimeout(()=>{ takeP(); finish(); }, isW?(IS_MOBILE_DEV?800:1200):(IS_MOBILE_DEV?1500:2200)); },
+    partial:t=>{ if(locked) return; lastP=t; const l=$('#liveTx'); if(l) l.textContent=heardNow();
+      clearTimeout(evalT); if(fillPaint(isW,target,heardNow())){ takeP(); return finish(); } // 다 채워지면 바로 통과
+      evalT=setTimeout(()=>{ takeP(); finish(); }, isW?1600:2300); },
     flush:()=>{ if(locked||!lastP) return; takeP(); clearTimeout(evalT); evalT=setTimeout(finish,isW?50:300); },
     final:t=>{ if(locked) return; lastP=''; buf=(buf+' '+t).trim(); const l=$('#liveTx'); if(l) l.textContent=buf;
-      const enough=isW||buf.split(/\s+/).length>=Math.max(1,Math.ceil(target.split(/\s+/).length*0.6));
-      clearTimeout(evalT); evalT=setTimeout(finish, enough?(isW?120:450):1300); }
+      clearTimeout(evalT); if(fillPaint(isW,target,buf)) return finish();
+      evalT=setTimeout(finish, isW?900:1300); }
   };
   window._studyMic=(autoStart)=>{ if(LIVE.on){ if(!autoStart) stopLive(); return; } startLive(autoStart); };
   $('#micBtn').onclick=()=>window._studyMic(false);
@@ -1447,12 +1484,12 @@ function sayIt(text,slow){ return LIVE.on?liveSpeak(text,slow):speak(text,slow);
 function waitDictIdle(maxMs){ return new Promise(res=>{ const t0=Date.now(); const tick=()=>{ if(dictState!=='listening'||Date.now()-t0>maxMs) res(); else setTimeout(tick,50); }; tick(); }); }
 function liveSpeakMobile(text,slow){
   // 휴대폰: 발음을 들려주는 동안은 마이크를 잠깐 끄고(스피커 소리를 듣고 끊기는 문제 방지), 끝나면 바로 다시 켜요
-  LIVE.paused=true; LIVE.gateUntil=Infinity;
+  LIVE.paused=true; LIVE.gateUntil=Infinity; fillOff();
   const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">끝나면 바로 따라 말해요</span>';
   let p=Promise.resolve();
   if(DICT&&dictState==='listening'){ dictTarget=null; p=DICT.stop().catch(()=>{}).then(()=>waitDictIdle(700)); }
   return p.then(()=>browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{
-    LIVE.paused=false; LIVE.gateUntil=0; LIVE.gateEnd=0; LIVE.heardPartial=true;
+    LIVE.paused=false; LIVE.gateUntil=0; LIVE.gateEnd=0; LIVE.heardPartial=true; fillReady();
     if(!LIVE.on){ refreshMicUI(); return; }
     dictTarget=liveHandler;
     if(dictState!=='listening') return DICT.start().then(()=>refreshMicUI()).catch(()=>{ LIVE.on=false; refreshMicUI(); micNudge('마이크가 꺼졌어요. 눌러서 다시 시작해요'); });
@@ -1462,8 +1499,8 @@ function liveSpeakMobile(text,slow){
 function liveSpeak(text,slow){
   if(IS_MOBILE_DEV) return liveSpeakMobile(text,slow);
   // 마이크가 켜진 채로 발음을 들려주고, 재생 중에 들린 소리(스피커 소리)는 채점에서 빼요
-  LIVE.gateUntil=Infinity; const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">끝나면 바로 따라 말해요</span>';
-  return Promise.resolve(browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{ LIVE.gateUntil=Date.now()+(IS_IOS_DEV?350:200); LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false; refreshMicUI(); });
+  LIVE.gateUntil=Infinity; fillOff(); const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">끝나면 바로 따라 말해요</span>';
+  return Promise.resolve(browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{ fillReady(); LIVE.gateUntil=Date.now()+(IS_IOS_DEV?350:200); LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false; refreshMicUI(); });
 }
 const liveHandler={
   partial:t=>{ if(Date.now()<LIVE.gateUntil) return; LIVE.heardPartial=true; LIVE.card&&LIVE.card.partial(t); },
@@ -1478,7 +1515,7 @@ const liveHandler={
 };
 function startLive(auto){
   if(!DICT){ micStart(null,auto); return; }
-  if(LIVE.on) return; LIVE.on=true; dictTarget=liveHandler; LIVE.gateUntil=Date.now()+250; LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false;
+  if(LIVE.on) return; LIVE.on=true; dictTarget=liveHandler; fillReady(); LIVE.gateUntil=Date.now()+250; LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false;
   const mb=document.getElementById('micBtn'); if(mb) mb.classList.remove('nudge');
   try{ if(TTS&&TTS.stop) TTS.stop(); }catch(e){}
   DICT.start().then(()=>refreshMicUI()).catch(e=>{ LIVE.on=false; const c=e&&e.code; refreshMicUI();
