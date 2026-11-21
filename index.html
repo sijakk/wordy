@@ -29,14 +29,24 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{min-height:100%}
-body{font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink);background:#E3EAF6;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100dvh}
+body{font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink);background:#E3EAF6;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;min-height:100dvh}
 .app{flex-shrink:0}
-@media(min-width:500px){body{padding-top:4dvh}}
 .en{font-family:'Outfit','Noto Sans KR',sans-serif}
 button{font:inherit;color:inherit;border:none;background:none;cursor:pointer}
 input,textarea{font:inherit;color:inherit}
 .app{position:relative;width:100%;max-width:420px;height:100dvh;max-height:880px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
 @media(min-width:500px){.app{border-radius:36px;box-shadow:0 30px 80px rgba(15,35,90,.2);height:92dvh}}
+/* 사이트 상단 메뉴 (학습 자료 페이지와 같은 틀) */
+.site-head{width:100%;background:#fff;border-bottom:1px solid var(--line);flex-shrink:0}
+.site-head .inner{max-width:760px;margin:0 auto;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.site-head .logo{font:800 20px -apple-system,BlinkMacSystemFont,"Pretendard","Noto Sans KR",sans-serif;color:#2f7de1;text-decoration:none;letter-spacing:.5px}
+.site-head nav a{margin-left:16px;color:#5b6678;text-decoration:none;font-size:15px}
+.site-head nav a:hover{color:#2f7de1}
+.site-head nav a.on{color:#2f7de1;font-weight:700}
+.app{height:calc(100dvh - 57px)}
+@media(min-width:500px){.app{height:calc(100dvh - 57px - 48px);margin-top:24px}}
+@media(max-width:600px){.site-head .logo{font-size:18px}.site-head nav a{margin-left:12px;font-size:14px}.site-head nav a.hide-m{display:none}}
+@media (display-mode: standalone){.site-head{display:none}.app{height:100dvh;margin-top:0}}
 #screen{flex:1;overflow-y:auto;overflow-x:hidden;position:relative}
 #screen::-webkit-scrollbar{width:0}
 .pad{padding:20px 20px 28px}
@@ -357,6 +367,10 @@ input,textarea{font:inherit;color:inherit}
 </style>
 </head>
 <body>
+<header class="site-head"><div class="inner">
+<a class="logo" href="./">WORDY</a>
+<nav><a class="on" href="./">▶ 워디 학습하기</a><a href="learn/">영어 학습</a><a class="hide-m" href="about.html">소개</a><a class="hide-m" href="contact.html">문의</a></nav>
+</div></header>
 <div class="app" id="app">
   <div id="screen"></div>
   <nav class="tabbar hidden" id="tabbar"></nav>
