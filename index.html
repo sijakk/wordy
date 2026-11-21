@@ -733,12 +733,14 @@ const DAILY_GOAL=50; // (구버전 호환용)
 let TTS=null, DICT=null, AI=null, dictState='idle', dictTarget=null;
 function capUse(name){ try{ return (window.claude && window.claude.use) ? window.claude.use(name) : Promise.resolve(null);}catch(e){return Promise.resolve(null)} }
 Promise.resolve(null).then(t=>{TTS=t; if(t&&t.onState) t.onState(({state})=>{document.querySelectorAll('.listen-big').forEach(b=>b.classList.toggle('playing',state==='speaking'))});}).catch(()=>{});
+// 휴대폰(안드로이드·아이폰)은 연속 인식이 불안정해서 한 마디씩 듣고 바로 다시 켜는 방식을 써요
+var IS_MOBILE_DEV=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(/Macintosh/.test(navigator.userAgent||'')&&'ontouchend' in document);
 function webDictation(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return null;
   let rec=null, cbP=()=>{}, cbF=()=>{}, cbS=()=>{};
   return { onPartial(f){cbP=f}, onFinal(f){cbF=f}, onState(f){cbS=f},
     start(){ return new Promise((res,rej)=>{ try{
-      rec=new SR(); rec.lang='en-US'; rec.interimResults=true; rec.continuous=true; rec.maxAlternatives=1;
+      rec=new SR(); rec.lang='en-US'; rec.interimResults=true; rec.continuous=!IS_MOBILE_DEV; rec.maxAlternatives=1;
       rec.onstart=()=>{cbS({state:'listening'});res()};
       rec.onresult=e=>{ let interim=''; for(let i=e.resultIndex;i<e.results.length;i++){ const r=e.results[i]; if(r.isFinal) cbF({text:r[0].transcript}); else interim+=r[0].transcript; } if(interim) cbP({text:interim}); };
       rec.onerror=e=>{ if(e.error==='not-allowed'||e.error==='service-not-allowed') rej({code:'not_granted'}); else if(e.error==='audio-capture') toast('마이크를 찾을 수 없어요. 마이크 권한을 확인해 주세요'); else if(e.error==='network') toast('음성 인식에 인터넷 연결이 필요해요'); cbS({state:'idle',reason:e.error}); };
@@ -1390,7 +1392,23 @@ function waitSpeechEnd(maxMs=4000){
 // ===== 연속 연습 모드 (마이크 상시 켜짐) =====
 const LIVE={on:false,gateUntil:0,card:null};
 function sayIt(text,slow){ return LIVE.on?liveSpeak(text,slow):speak(text,slow); }
+function waitDictIdle(maxMs){ return new Promise(res=>{ const t0=Date.now(); const tick=()=>{ if(dictState!=='listening'||Date.now()-t0>maxMs) res(); else setTimeout(tick,50); }; tick(); }); }
+function liveSpeakMobile(text,slow){
+  // 휴대폰: 발음을 들려주는 동안은 마이크를 잠깐 끄고(스피커 소리를 듣고 끊기는 문제 방지), 끝나면 바로 다시 켜요
+  LIVE.paused=true; LIVE.gateUntil=Infinity;
+  const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">끝나면 바로 따라 말해요</span>';
+  let p=Promise.resolve();
+  if(DICT&&dictState==='listening'){ dictTarget=null; p=DICT.stop().catch(()=>{}).then(()=>waitDictIdle(700)); }
+  return p.then(()=>browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{
+    LIVE.paused=false; LIVE.gateUntil=0; LIVE.gateEnd=0; LIVE.heardPartial=true;
+    if(!LIVE.on){ refreshMicUI(); return; }
+    dictTarget=liveHandler;
+    if(dictState!=='listening') return DICT.start().then(()=>refreshMicUI()).catch(()=>{ LIVE.on=false; refreshMicUI(); micNudge('마이크가 꺼졌어요. 눌러서 다시 시작해요'); });
+    refreshMicUI();
+  });
+}
 function liveSpeak(text,slow){
+  if(IS_MOBILE_DEV) return liveSpeakMobile(text,slow);
   // 마이크가 켜진 채로 발음을 들려주고, 재생 중에 들린 소리(스피커 소리)는 채점에서 빼요
   LIVE.gateUntil=Infinity; const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">끝나면 바로 따라 말해요</span>';
   return Promise.resolve(browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{ LIVE.gateUntil=Date.now()+(IS_IOS_DEV?350:200); LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false; refreshMicUI(); });
@@ -1398,12 +1416,12 @@ function liveSpeak(text,slow){
 const liveHandler={
   partial:t=>{ if(Date.now()<LIVE.gateUntil) return; LIVE.heardPartial=true; LIVE.card&&LIVE.card.partial(t); },
   final:t=>{ if(Date.now()<LIVE.gateUntil) return;
-    if(!LIVE.heardPartial&&Date.now()-(LIVE.gateEnd||0)<900) return; // 메아리로 보이는 결과
+    if(!IS_MOBILE_DEV&&!LIVE.heardPartial&&Date.now()-(LIVE.gateEnd||0)<900) return; // 메아리로 보이는 결과 (PC만)
     LIVE.heardPartial=false; LIVE.card&&LIVE.card.final(t); },
-  idle:()=>{ if(!LIVE.on) return;
+  idle:()=>{ if(!LIVE.on||LIVE.paused) return;
     // 음성 인식이 중간에 끊기면 자동으로 다시 켜요
     setTimeout(()=>{ if(!LIVE.on||dictState==='listening') return; dictTarget=liveHandler;
-      DICT.start().catch(()=>{ LIVE.on=false; refreshMicUI(); micNudge('마이크가 꺼졌어요. 눌러서 다시 시작해요'); }); },300); }
+      DICT.start().catch(()=>{ LIVE.on=false; refreshMicUI(); micNudge('마이크가 꺼졌어요. 눌러서 다시 시작해요'); }); },IS_MOBILE_DEV?60:300); }
 };
 function startLive(auto){
   if(!DICT){ micStart(null,auto); return; }
