@@ -810,7 +810,35 @@ function warnNoEnglishVoice(){
   if(_voiceWarned) return; _voiceWarned=true;
   confirmBox('영어 음성이 설치되어 있지 않아요',IS_ANDROID?'휴대폰 <b>설정 → 일반 → 텍스트 음성 변환(TTS)</b>에서<br>① 기본 엔진을 <b>Google 음성 인식 및 합성</b>으로 바꾸고<br>② <b>영어(미국)</b> 음성 데이터를 설치해 주세요.<br>설치 후 워디를 다시 열면 원어민 발음으로 들려요.':'기기 설정에서 영어(미국) 음성을 추가해 주세요.','확인',()=>{});
 }
+// --- 원어민 발음 파일: audio/manifest.json 에 등록된 문장은 mp3로 재생, 없으면 기기 음성
+let AUDIO_MAP=null;
+try{ fetch('audio/manifest.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{ if(j&&j.items) AUDIO_MAP=j; }).catch(()=>{}); }catch(e){}
+const AUD=new Audio(); AUD.preload='auto';
+let _audUnlocked=false;
+function _silentWav(){ const n=400,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,16000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+  return URL.createObjectURL(new Blob([b],{type:'audio/wav'})); }
+function unlockAudio(){ // 아이폰: 첫 터치 때 오디오를 한 번 열어 두면 이후 자동 재생이 돼요
+  if(_audUnlocked) return; _audUnlocked=true;
+  try{ AUD.src=_silentWav(); const p=AUD.play(); if(p&&p.catch) p.catch(()=>{_audUnlocked=false;}); }catch(e){ _audUnlocked=false; } }
+document.addEventListener('pointerdown',unlockAudio,true); document.addEventListener('touchend',unlockAudio,true);
+function audioFor(text){ if(!AUDIO_MAP||!text) return null; const id=AUDIO_MAP.items[String(text).trim()]; if(!id) return null; return `audio/${S.gender==='male'?'m':'f'}/${id}.mp3`; }
+function playFile(src,slow){
+  return new Promise(res=>{ let done=false; const fin=r=>{ if(done) return; done=true; AUD.onended=AUD.onerror=null; res(r); };
+    try{ try{ if('speechSynthesis' in window) speechSynthesis.cancel(); }catch(e){}
+      AUD.pause(); AUD.src=src; AUD.defaultPlaybackRate=AUD.playbackRate=slow?0.8:1;
+      try{ AUD.preservesPitch=true; AUD.webkitPreservesPitch=true; }catch(e){}
+      AUD.onended=()=>fin('ok'); AUD.onerror=()=>fin('err');
+      const p=AUD.play(); if(p&&p.catch) p.catch(()=>fin('err'));
+      setTimeout(()=>fin('ok'),12000);
+    }catch(e){ fin('err'); } });
+}
 function browserSpeak(text,slow){
+  const f=audioFor(text);
+  if(f) return playFile(f,slow).then(r=>{ if(r==='err') return ttsSpeak(text,slow); });
+  return ttsSpeak(text,slow);
+}
+function ttsSpeak(text,slow){
   return new Promise(res=>{
     try{
       if(!('speechSynthesis' in window)){ if(INAPP) inappHelp('소리 듣기'); else toast('이 브라우저에서는 음성 재생이 지원되지 않아요.<br>크롬이나 Safari로 열어 주세요'); return res(); }
@@ -917,6 +945,7 @@ function setScreen(html,tab){
 }
 function stopAudio(keepLive){
   try{ if(TTS&&TTS.stop) TTS.stop(); }catch(e){}
+  try{ if(typeof AUD!=='undefined') AUD.pause(); }catch(e){}
   try{ if('speechSynthesis' in window) speechSynthesis.cancel(); }catch(e){}
   if(keepLive&&LIVE.on){ LIVE.gateUntil=0; return; }
   LIVE.on=false; LIVE.card=null;
