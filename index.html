@@ -1260,8 +1260,6 @@ function home(){
       <div class="stat"><b class="en">${sentN}</b><small>통과한 문장</small></div>
       <div class="stat"><b class="en">${S.chats}</b><small>AI 대화</small></div>
     </div>
-    <div class="sec-title">곧 추가돼요 <span class="label">COMING SOON</span></div>
-    <div class="card" style="display:flex;gap:12px;align-items:center"><span style="color:var(--mint)">${I.globe.replace('<svg','<svg width="30" height="30"')}</span><div style="font-size:13.5px;line-height:1.5;color:var(--ink2)"><b style="color:var(--ink)">다국어 학습</b><br>일본어 · 중국어 · 스페인어 등 새로운 언어가 준비 중이에요.</div></div>
   </div>`,'home');
 }
 
@@ -1388,13 +1386,16 @@ function studyScreen(mode,auto=true){
     },900);
   };
   // ===== 연속 연습 모드: 마이크는 계속 켜 두고, 이 카드에서 들린 말만 채점 =====
-  let buf='', evalT=null, locked=false;
-  const resetCard=()=>{ buf=''; locked=false; clearTimeout(evalT); const l=$('#liveTx'); if(l) l.textContent='따라 말해 보세요'; };
+  let buf='', evalT=null, locked=false, lastP='';
+  const takeP=()=>{ if(lastP){ buf=(buf+' '+lastP).trim(); lastP=''; } };
+  const resetCard=()=>{ buf=''; lastP=''; locked=false; clearTimeout(evalT); const l=$('#liveTx'); if(l) l.textContent='따라 말해 보세요'; };
   const finish=()=>{ if(locked||!buf) return; locked=true; clearTimeout(evalT); evaluate(buf,'voice'); };
   window._resetCard=resetCard;
   LIVE.card={
-    partial:t=>{ if(locked) return; const l=$('#liveTx'); if(l) l.textContent=(buf+' '+t).trim(); if(!isW){ clearTimeout(evalT); evalT=setTimeout(finish,2200); } },
-    final:t=>{ if(locked) return; buf=(buf+' '+t).trim(); const l=$('#liveTx'); if(l) l.textContent=buf;
+    partial:t=>{ if(locked) return; lastP=t; const l=$('#liveTx'); if(l) l.textContent=(buf+' '+t).trim();
+      clearTimeout(evalT); evalT=setTimeout(()=>{ takeP(); finish(); }, isW?(IS_MOBILE_DEV?800:1200):(IS_MOBILE_DEV?1500:2200)); },
+    flush:()=>{ if(locked||!lastP) return; takeP(); clearTimeout(evalT); evalT=setTimeout(finish,isW?50:300); },
+    final:t=>{ if(locked) return; lastP=''; buf=(buf+' '+t).trim(); const l=$('#liveTx'); if(l) l.textContent=buf;
       const enough=isW||buf.split(/\s+/).length>=Math.max(1,Math.ceil(target.split(/\s+/).length*0.6));
       clearTimeout(evalT); evalT=setTimeout(finish, enough?(isW?120:450):1300); }
   };
@@ -1470,6 +1471,7 @@ const liveHandler={
     if(!IS_MOBILE_DEV&&!LIVE.heardPartial&&Date.now()-(LIVE.gateEnd||0)<900) return; // 메아리로 보이는 결과 (PC만)
     LIVE.heardPartial=false; LIVE.card&&LIVE.card.final(t); },
   idle:()=>{ if(!LIVE.on||LIVE.paused) return;
+    try{ if(Date.now()>=LIVE.gateUntil&&LIVE.card&&LIVE.card.flush) LIVE.card.flush(); }catch(e){}
     // 음성 인식이 중간에 끊기면 자동으로 다시 켜요
     setTimeout(()=>{ if(!LIVE.on||dictState==='listening') return; dictTarget=liveHandler;
       DICT.start().catch(()=>{ LIVE.on=false; refreshMicUI(); micNudge('마이크가 꺼졌어요. 눌러서 다시 시작해요'); }); },IS_MOBILE_DEV?60:300); }
@@ -1665,7 +1667,7 @@ function me(){
       <button onclick="go('closet')">워디 꾸미기 <span>옷장 →</span></button>
       <button onclick="voiceSettings()">워디 목소리 <span id="pvVoice">${VOICES[S.gender].ko}</span></button>
       <button onclick="go('name')">이름 바꾸기 <span>${esc(S.name)}</span></button>
-      <button onclick="toast('일본어 · 중국어 · 스페인어가 곧 추가돼요!')">학습 언어 <span>English 🇺🇸</span></button>
+      <button onclick="toast('지금은 영어 학습을 제공하고 있어요')">학습 언어 <span>English 🇺🇸</span></button>
       <button onclick="location.href='learn/'">영어 학습 자료 <span>→</span></button>
       <button onclick="location.href='privacy.html'">개인정보처리방침 <span>→</span></button>
       <button onclick="location.href='terms.html'">이용약관 <span>→</span></button>
