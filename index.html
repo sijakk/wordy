@@ -935,8 +935,11 @@ function refreshMicUI(){
   const st=document.getElementById('micState');
   if(st){
     if(!DICT) st.innerHTML='<b>이 브라우저에선 말하기를 쓸 수 없어요</b>크롬이나 Safari에서 열면 말하기 연습을 할 수 있어요';
+    else if(LIVE.on&&IS_MOBILE_DEV&&dictState!=='listening') st.innerHTML='<b>⏳ 마이크 준비 중…</b><span class="live" id="liveTx">곧 말할 차례예요</span>';
     else if(LIVE.on) st.innerHTML='<b>🎙 말해 보세요</b><span class="live" id="liveTx">알아들은 만큼 글자가 채워져요</span><br><span style="font-size:11.5px;color:var(--muted)">인식되면 자동으로 넘어가요 · ■ 누르면 종료</span>';
     else if(dictState==='listening') st.innerHTML='<b>듣고 있어요… 🎙</b><span class="live" id="liveTx">또박또박 말해 보세요</span>';
+    else if(TAP()) st.innerHTML='<b>🎙 눌러서 말하기</b>버튼을 누르고 따라 말하면 글자가 채워져요';
+    else if(IS_MOBILE_DEV) st.innerHTML='<b>🎙 마이크 꺼짐</b>발음이 끝나면 자동으로 켜져요 · 버튼을 눌러 바로 시작할 수도 있어요';
     else st.innerHTML='<b>🎙 눌러서 연습 시작</b>마이크는 계속 켜져 있고, 따라 말하면 자동으로 넘어가요';
   }
 }
@@ -1341,7 +1344,7 @@ function studyScreen(mode,auto=true){
   const it=list[idx]; CUR=it; const key=it.en||it.w;
   const target=isW?it.w:it.en;
   const isKnown=isW?!!S.known[it.w]:!!S.sentDone[key];
-  setScreen(`<div class="top"><div class="seg"><button class="${isW?'on':''}" onclick="go('word')">단어</button><button class="${isW?'':'on'}" onclick="go('sent')">문장</button></div><div style="flex:1"></div><button class="toggle ${S.autoFlow!==false?'on':''}" onclick="S.autoFlow=(S.autoFlow===false);save();toast(S.autoFlow?'🔁 듣기가 끝나면 마이크가 자동으로 켜져요':'자동 말하기를 껐어요');studyScreen('${mode}',false)">🔁 자동</button><button class="toggle" onclick="voiceSettings()">🎙</button></div>
+  setScreen(`<div class="top"><div class="seg"><button class="${isW?'on':''}" onclick="go('word')">단어</button><button class="${isW?'':'on'}" onclick="go('sent')">문장</button></div><div style="flex:1"></div>${IS_MOBILE_DEV?`<button class="toggle ${TAP()?'':'on'}" onclick="S.micTap=!TAP();save();toast(TAP()?'👆 마이크를 눌러서 말해요':'🔁 듣기가 끝나면 마이크가 자동으로 켜져요');studyScreen('${mode}',false)">${TAP()?'👆 눌러서':'🔁 자동'}</button>`:`<button class="toggle ${S.autoFlow!==false?'on':''}" onclick="S.autoFlow=(S.autoFlow===false);save();toast(S.autoFlow?'🔁 듣기가 끝나면 마이크가 자동으로 켜져요':'자동 말하기를 껐어요');studyScreen('${mode}',false)">🔁 자동</button>`}<button class="toggle" onclick="voiceSettings()">🎙</button></div>
   <div class="chips">${GROUPS.map((x,k)=>k>maxG?`<button class="chip" style="opacity:.55" onclick="toast('🔒 ${TIERS[GROUP_MIN_TIER[k]].ko} 티어부터 열려요.<br>승급전으로 티어를 올려 보세요!')">🔒 ${x}</button>`:`<button class="chip ${k===g?'on':''}" onclick="setGroup('${mode}',${k})">${x}</button>`).join('')}</div>
   <div class="study">
     <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -1422,12 +1425,13 @@ function studyScreen(mode,auto=true){
   const takeP=()=>{ if(lastP){ buf=(buf+' '+lastP).trim(); lastP=''; } };
   const resetCard=()=>{ buf=''; lastP=''; locked=false; clearTimeout(evalT);
     if(!isW){ const st=$('#sentText'); if(st&&!st.querySelector('.wd')) st.innerHTML=it.en.split(' ').map(w=>`<span class="wd">${esc(w)}</span>`).join(' '); } const l=$('#liveTx'); if(l) l.textContent='알아들은 만큼 글자가 채워져요'; };
-  const finish=()=>{ if(locked||!buf) return; locked=true; clearTimeout(evalT);
+  const finish=()=>{ if(locked||!buf) return; locked=true; clearTimeout(evalT); if(IS_MOBILE_DEV) stopLive();
     const wc=document.querySelector('.wcard'); const full=fillPaint(isW,target,buf); if(wc&&full){ wc.classList.add('filled'); }
     setTimeout(()=>{ fillOff(); evaluate(buf,'voice'); }, full?450:0); };
   const heardNow=()=>(buf+' '+lastP).trim();
   window._resetCard=resetCard;
   LIVE.card={
+    busy:()=>locked||!!buf||!!lastP,
     partial:t=>{ if(locked) return; lastP=t; const l=$('#liveTx'); if(l) l.textContent=heardNow();
       clearTimeout(evalT); if(fillPaint(isW,target,heardNow())){ takeP(); return finish(); } // 다 채워지면 바로 통과
       evalT=setTimeout(()=>{ takeP(); finish(); }, isW?1600:2300); },
@@ -1481,14 +1485,20 @@ function waitSpeechEnd(maxMs=4000){
 // ===== 연속 연습 모드 (마이크 상시 켜짐) =====
 const LIVE={on:false,gateUntil:0,card:null};
 function sayIt(text,slow){ return LIVE.on?liveSpeak(text,slow):speak(text,slow); }
+// mp3 발음이 아직 재생 중이면 끝날 때까지 기다려요
+function waitAudioEnd(maxMs=8000){ return new Promise(res=>{ const t0=Date.now(); const tick=()=>{ let busy=false; try{ busy=typeof AUD!=='undefined'&&!AUD.paused&&!AUD.ended&&AUD.currentTime>0; }catch(e){}
+  if(!busy||Date.now()-t0>maxMs) res(); else setTimeout(tick,80); }; tick(); }); }
 function waitDictIdle(maxMs){ return new Promise(res=>{ const t0=Date.now(); const tick=()=>{ if(dictState!=='listening'||Date.now()-t0>maxMs) res(); else setTimeout(tick,50); }; tick(); }); }
 function liveSpeakMobile(text,slow){
   // 휴대폰: 발음을 들려주는 동안은 마이크를 잠깐 끄고(스피커 소리를 듣고 끊기는 문제 방지), 끝나면 바로 다시 켜요
-  LIVE.paused=true; LIVE.gateUntil=Infinity; fillOff();
+  LIVE.turn=(LIVE.turn||0)+1; LIVE.paused=true; LIVE.gateUntil=Infinity; fillOff();
   const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">끝나면 바로 따라 말해요</span>';
   let p=Promise.resolve();
-  if(DICT&&dictState==='listening'){ dictTarget=null; p=DICT.stop().catch(()=>{}).then(()=>waitDictIdle(700)); }
-  return p.then(()=>browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{
+  // 켜지는 중인 마이크까지 확실히 끄고 발음을 들려줘요
+  if(DICT){ dictTarget=null; p=DICT.stop().catch(()=>{}).then(()=>waitDictIdle(700)); }
+  const myTurn=LIVE.turn;
+  return p.then(()=>browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>waitAudioEnd()).then(()=>new Promise(r=>setTimeout(r,200))).then(()=>{
+    if(LIVE.turn!==myTurn) return; // 그 사이 다른 카드로 넘어갔으면 무시
     LIVE.paused=false; LIVE.gateUntil=0; LIVE.gateEnd=0; LIVE.heardPartial=true; fillReady();
     if(!LIVE.on){ refreshMicUI(); return; }
     dictTarget=liveHandler;
@@ -1509,13 +1519,19 @@ const liveHandler={
     LIVE.heardPartial=false; LIVE.card&&LIVE.card.final(t); },
   idle:()=>{ if(!LIVE.on||LIVE.paused) return;
     try{ if(Date.now()>=LIVE.gateUntil&&LIVE.card&&LIVE.card.flush) LIVE.card.flush(); }catch(e){}
+    if(IS_MOBILE_DEV){
+      if(LIVE.card&&LIVE.card.busy&&LIVE.card.busy()) return; // 들은 말이 있으면 채점 후 마이크를 꺼요 (다시 켜지 않음)
+      LIVE.retry=(LIVE.retry||0)+1;
+      if(TAP()||LIVE.retry>1){ setTimeout(()=>{ if(!LIVE.on) return; LIVE.on=false; fillOff(); refreshMicUI(); micNudge(TAP()?'잘 못 들었어요. 다시 눌러 말해 보세요':'잘 못 들었어요. 버튼을 누르고 말해 보세요'); },450); return; }
+    }
     // 음성 인식이 중간에 끊기면 자동으로 다시 켜요
-    setTimeout(()=>{ if(!LIVE.on||dictState==='listening') return; dictTarget=liveHandler;
+    const turn=LIVE.turn;
+    setTimeout(()=>{ if(!LIVE.on||LIVE.paused||LIVE.turn!==turn||dictState==='listening') return; dictTarget=liveHandler;
       DICT.start().catch(()=>{ LIVE.on=false; refreshMicUI(); micNudge('마이크가 꺼졌어요. 눌러서 다시 시작해요'); }); },IS_MOBILE_DEV?60:300); }
 };
 function startLive(auto){
   if(!DICT){ micStart(null,auto); return; }
-  if(LIVE.on) return; LIVE.on=true; dictTarget=liveHandler; fillReady(); LIVE.gateUntil=Date.now()+250; LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false;
+  if(LIVE.on) return; LIVE.on=true; LIVE.retry=0; dictTarget=liveHandler; fillReady(); LIVE.gateUntil=Date.now()+250; LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false;
   const mb=document.getElementById('micBtn'); if(mb) mb.classList.remove('nudge');
   try{ if(TTS&&TTS.stop) TTS.stop(); }catch(e){}
   DICT.start().then(()=>refreshMicUI()).catch(e=>{ LIVE.on=false; const c=e&&e.code; refreshMicUI();
@@ -1524,12 +1540,16 @@ function startLive(auto){
   refreshMicUI();
 }
 function stopLive(){ LIVE.on=false; if(DICT&&dictState==='listening'){ dictTarget=null; DICT.stop().catch(()=>{}); } refreshMicUI(); }
+// 휴대폰은 기본으로 '눌러서 말하기': 마이크가 저절로 켜졌다 꺼졌다 하지 않아요 (소리·끊김 방지)
+function TAP(){ return IS_MOBILE_DEV && S.micTap===true; }
 function speakThenMic(text,slow){
   if(LIVE.on) return liveSpeak(text,slow);
   const cur=CUR; window._autoTry={cur,n:0};
-  return Promise.resolve(speak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{
+  if(IS_MOBILE_DEV){ const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">'+(TAP()?'끝나면 버튼을 누르고 따라 말해요':'끝나면 마이크가 켜져요')+'</span>'; }
+  return Promise.resolve(speak(text,slow)).then(()=>waitSpeechEnd()).then(()=>waitAudioEnd()).then(()=>{
+    if(TAP()){ if(CUR===cur&&!LIVE.on&&document.getElementById('micBtn')) micNudge('발음을 들었으면 버튼을 누르고 따라 말해요'); return; }
     if(S.autoFlow===false||CUR!==cur||dictState==='listening'||!document.getElementById('micBtn')) return;
-    setTimeout(()=>{ if(CUR===cur&&window._studyMic&&document.getElementById('micBtn')) window._studyMic(true); },IS_IOS_DEV?400:150);
+    setTimeout(()=>{ if(CUR===cur&&!LIVE.on&&window._studyMic&&document.getElementById('micBtn')) window._studyMic(true); },IS_MOBILE_DEV?350:150);
   });
 }
 function micNudge(msg){
