@@ -1302,8 +1302,8 @@ function studyScreen(mode,auto=true){
       setTimeout(()=>{ if(CUR!==it) return;
         if(willNext) nextCard(mode);
         else { f.remove(); resetCard(); if(LIVE.on) liveSpeak(target); else if(S.autoFlow!==false) speakThenMic(target); }
-      },380);
-    },1500);
+      },250);
+    },900);
   };
   // ===== 연속 연습 모드: 마이크는 계속 켜 두고, 이 카드에서 들린 말만 채점 =====
   let buf='', evalT=null, locked=false;
@@ -1314,12 +1314,12 @@ function studyScreen(mode,auto=true){
     partial:t=>{ if(locked) return; const l=$('#liveTx'); if(l) l.textContent=(buf+' '+t).trim(); if(!isW){ clearTimeout(evalT); evalT=setTimeout(finish,2200); } },
     final:t=>{ if(locked) return; buf=(buf+' '+t).trim(); const l=$('#liveTx'); if(l) l.textContent=buf;
       const enough=isW||buf.split(/\s+/).length>=Math.max(1,Math.ceil(target.split(/\s+/).length*0.6));
-      clearTimeout(evalT); evalT=setTimeout(finish, enough?(isW?150:700):1600); }
+      clearTimeout(evalT); evalT=setTimeout(finish, enough?(isW?120:450):1300); }
   };
   window._studyMic=(autoStart)=>{ if(LIVE.on){ if(!autoStart) stopLive(); return; } startLive(autoStart); };
   $('#micBtn').onclick=()=>window._studyMic(false);
   // 카드에 들어오면: 자동 듣기 → 끝나면 마이크 자동 켜기
-  if(auto&&S.autoFlow!==false&&(REVIEW[mode]||!dailyState()[isW?'w':'s'][key])){ const me=it; setTimeout(()=>{ if(CUR===me&&document.getElementById('micBtn')) speakThenMic(target); },450); }
+  if(auto&&S.autoFlow!==false&&(REVIEW[mode]||!dailyState()[isW?'w':'s'][key])){ const me=it; setTimeout(()=>{ if(CUR===me&&document.getElementById('micBtn')) speakThenMic(target); },150); }
   refreshMicUI();
 
 }
@@ -1364,11 +1364,13 @@ function sayIt(text,slow){ return LIVE.on?liveSpeak(text,slow):speak(text,slow);
 function liveSpeak(text,slow){
   // 마이크가 켜진 채로 발음을 들려주고, 재생 중에 들린 소리(스피커 소리)는 채점에서 빼요
   LIVE.gateUntil=Infinity; const st=document.getElementById('micState'); if(st) st.innerHTML='<b>🔊 들어 보세요</b><span class="live" id="liveTx">끝나면 바로 따라 말해요</span>';
-  return Promise.resolve(browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{ LIVE.gateUntil=Date.now()+(IS_IOS_DEV?900:600); setTimeout(refreshMicUI,IS_IOS_DEV?900:600); });
+  return Promise.resolve(browserSpeak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{ LIVE.gateUntil=Date.now()+(IS_IOS_DEV?350:200); LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false; refreshMicUI(); });
 }
 const liveHandler={
-  partial:t=>{ if(Date.now()<LIVE.gateUntil) return; LIVE.card&&LIVE.card.partial(t); },
-  final:t=>{ if(Date.now()<LIVE.gateUntil) return; LIVE.card&&LIVE.card.final(t); },
+  partial:t=>{ if(Date.now()<LIVE.gateUntil) return; LIVE.heardPartial=true; LIVE.card&&LIVE.card.partial(t); },
+  final:t=>{ if(Date.now()<LIVE.gateUntil) return;
+    if(!LIVE.heardPartial&&Date.now()-(LIVE.gateEnd||0)<900) return; // 메아리로 보이는 결과
+    LIVE.heardPartial=false; LIVE.card&&LIVE.card.final(t); },
   idle:()=>{ if(!LIVE.on) return;
     // 음성 인식이 중간에 끊기면 자동으로 다시 켜요
     setTimeout(()=>{ if(!LIVE.on||dictState==='listening') return; dictTarget=liveHandler;
@@ -1376,7 +1378,7 @@ const liveHandler={
 };
 function startLive(auto){
   if(!DICT){ micStart(null,auto); return; }
-  if(LIVE.on) return; LIVE.on=true; dictTarget=liveHandler; LIVE.gateUntil=Date.now()+250;
+  if(LIVE.on) return; LIVE.on=true; dictTarget=liveHandler; LIVE.gateUntil=Date.now()+250; LIVE.gateEnd=LIVE.gateUntil; LIVE.heardPartial=false;
   const mb=document.getElementById('micBtn'); if(mb) mb.classList.remove('nudge');
   try{ if(TTS&&TTS.stop) TTS.stop(); }catch(e){}
   DICT.start().then(()=>refreshMicUI()).catch(e=>{ LIVE.on=false; const c=e&&e.code; refreshMicUI();
@@ -1390,7 +1392,7 @@ function speakThenMic(text,slow){
   const cur=CUR; window._autoTry={cur,n:0};
   return Promise.resolve(speak(text,slow)).then(()=>waitSpeechEnd()).then(()=>{
     if(S.autoFlow===false||CUR!==cur||dictState==='listening'||!document.getElementById('micBtn')) return;
-    setTimeout(()=>{ if(CUR===cur&&window._studyMic&&document.getElementById('micBtn')) window._studyMic(true); },IS_IOS_DEV?750:350);
+    setTimeout(()=>{ if(CUR===cur&&window._studyMic&&document.getElementById('micBtn')) window._studyMic(true); },IS_IOS_DEV?400:150);
   });
 }
 function micNudge(msg){
