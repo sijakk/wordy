@@ -1054,20 +1054,38 @@ function speak(text,slow){
 // 블록·짝꿍 누를 때: 기다림 없이 바로 나오는 기기 음성
 let VOICE=null, TTS_ON=false; const fastVoice=()=>VOICE||(VOICE=pickVoice());
 try{ speechSynthesis.addEventListener('voiceschanged',()=>{VOICE=null;}); }catch(e){}
-function speakFast(w){ const mp3=audioFor(w)||audioFor(tidy(w)); if(mp3&&AUD){ LAST=playFile(mp3); return; } if(NATIVE){ try{ NATIVE.stopSpeak(); }catch(e){} LAST=nativeSpeak(tidy(w)); return; } try{ if(TTS_ON&&TTS.stop) TTS.stop(); if(speechSynthesis.speaking||speechSynthesis.pending) speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(tidy(w)); u.lang='en-US'; u.rate=1; const v=fastVoice(); if(v){u.voice=v;u.lang=v.lang;} speechSynthesis.speak(u);}catch(e){} }
+// 크롬 음성 버그 대비: ①멈춤 상태 풀기(resume) ②멈춘 직후 바로 말하면 씹히니 살짝 쉬고 말하기
+// ③0.6초 안에 시작 안 하면 한 번 더 시도 ④말하는 도중 사라지지 않게 붙잡아 두기
+let UTT=null;
+function ssSpeak(text,rate,voice,onend){
+  const ss=window.speechSynthesis; if(!ss){ if(onend) onend(); return; }
+  let tries=0, done=false;
+  const fin=()=>{ if(done) return; done=true; if(onend) onend(); };
+  const go=()=>{
+    tries++;
+    const u=new SpeechSynthesisUtterance(text); u.lang='en-US'; u.rate=rate; if(voice){u.voice=voice;u.lang=voice.lang;}
+    let started=false; u.onstart=()=>{started=true;}; u.onend=fin; u.onerror=e=>{ if(e&&e.error==='interrupted') return; if(started) fin(); };
+    UTT=u;
+    try{ ss.resume(); ss.speak(u); }catch(e){ fin(); return; }
+    setTimeout(()=>{ if(!started&&!done&&UTT===u){ if(tries<2){ try{ss.cancel();ss.resume();}catch(e){} setTimeout(go,80); } else fin(); } },600);
+  };
+  try{ if(ss.speaking||ss.pending||ss.paused){ ss.cancel(); setTimeout(go,60); } else go(); }catch(e){ go(); }
+}
+function speakFast(w){ const mp3=audioFor(w)||audioFor(tidy(w)); if(mp3&&AUD){ LAST=playFile(mp3); return; } if(NATIVE){ try{ NATIVE.stopSpeak(); }catch(e){} LAST=nativeSpeak(tidy(w)); return; }
+  try{ if(TTS_ON&&TTS.stop) TTS.stop(); }catch(e){} try{ if(AUD&&!AUD.paused) AUD.pause(); }catch(e){}
+  LAST=new Promise(res=>ssSpeak(tidy(w),1,fastVoice(),res)); }
 // 첫 소리는 기기가 음성을 불러오느라 늦어요 → 처음 화면을 누를 때 소리 없이 한 번 미리 깨워 둬요
 let WARM=false;
 function warmVoice(){ if(WARM) return; WARM=true; try{ fastVoice(); const u=new SpeechSynthesisUtterance(' '); u.volume=0; u.lang='en-US'; speechSynthesis.speak(u); }catch(e){} }
 document.addEventListener('pointerdown',warmVoice,{capture:true,once:true});
 function deviceSpeak(text,slow){
-  return new Promise(res=>{ try{
+  return new Promise(res=>{
     if(!('speechSynthesis' in window)) return res();
-    speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='en-US'; u.rate=slow?0.7:0.9;
-    const v=pickVoice(); if(v){u.voice=v;u.lang=v.lang;}
     document.querySelectorAll('.listen-big').forEach(b=>b.classList.add('playing'));
-    let done=false; const end=()=>{ if(done) return; done=true; document.querySelectorAll('.listen-big').forEach(b=>b.classList.remove('playing'));res();};
-    u.onend=end;u.onerror=end;speechSynthesis.speak(u); setTimeout(end,4000+text.length*(slow?160:110));
-  }catch(e){res()} });
+    let done=false; const end=()=>{ if(done) return; done=true; document.querySelectorAll('.listen-big').forEach(b=>b.classList.remove('playing')); res(); };
+    ssSpeak(text,slow?0.7:0.9,pickVoice(),end);
+    setTimeout(end,5000+text.length*(slow?160:110));
+  });
 }
 function stopTTS(){ try{ if(AUD) AUD.pause(); }catch(e){} try{ if(NATIVE) NATIVE.stopSpeak(); }catch(e){} try{ if(TTS) TTS.stop(); }catch(e){} try{ speechSynthesis.cancel(); }catch(e){} }
 
@@ -1306,9 +1324,24 @@ function noMicFallback(a,err){
   $('#selfOk').onclick=()=>RUN.mode==='test'?testNext(false):clearAct('따라 말하기 완료','soft');
 }
 // CLEAR 점수판 → 다음 콘텐츠
+// 효과음: 파일 없이 바로 만들어 재생 (띠링 / 레벨 완료 팡파레)
+let ACX=null;
+function sfxInit(){ try{ if(!ACX){ const C=window.AudioContext||window.webkitAudioContext; if(C) ACX=new C(); } if(ACX&&ACX.state==='suspended') ACX.resume(); }catch(e){} }
+document.addEventListener('pointerdown',sfxInit,{capture:true});
+function tone(f,t0,dur,vol){ const o=ACX.createOscillator(), g=ACX.createGain(); o.type='sine'; o.frequency.value=f;
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol,t0+0.012); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g); g.connect(ACX.destination); o.start(t0); o.stop(t0+dur+0.05);
+  const o2=ACX.createOscillator(), g2=ACX.createGain(); o2.type='sine'; o2.frequency.value=f*2; g2.gain.setValueAtTime(0.0001,t0); g2.gain.exponentialRampToValueAtTime(vol*0.25,t0+0.012); g2.gain.exponentialRampToValueAtTime(0.0001,t0+dur*0.6); o2.connect(g2); g2.connect(ACX.destination); o2.start(t0); o2.stop(t0+dur);
+}
+function sfx(kind){ try{ sfxInit(); if(!ACX) return; const t=ACX.currentTime+0.01;
+  if(kind==='clear'){ tone(1318.5,t,0.32,0.22); tone(1760,t+0.09,0.5,0.22); }            // 띠링
+  else if(kind==='level'){ [1046.5,1318.5,1568,2093].forEach((f,k)=>tone(f,t+k*0.11,k===3?0.8:0.3,0.2)); } // 레벨 완료
+  else if(kind==='wrong'){ tone(330,t,0.18,0.12); }
+}catch(e){} }
 function clearAct(sub,cls='',wait=1150){
   const a=RUN.acts[RUN.i]; if(a.cleared) return; a.cleared=true; if(!a.tries) RUN.first++;
   micAbort(); micUI();
+  sfx('clear');
   const f=document.createElement('div'); f.className='clear-board '+cls; f.innerHTML=`<div class="n">CLEAR!</div><div class="s">${sub}</div>`;
   $('.play').appendChild(f);
   setTimeout(()=>f.classList.add('out'),wait-300);
@@ -1316,7 +1349,7 @@ function clearAct(sub,cls='',wait=1150){
   setTimeout(()=>{ f.remove(); waitAudio.then(()=>{ if(!RUN) return; RUN.i++; RUN.i>=RUN.acts.length?(RUN.mode==='bonus'?finishBonus():finishLevel()):renderAct(); }); },wait);
 }
 function testNext(ok){
-  if(ok) RUN.correct++;
+  if(ok) RUN.correct++; if(ok) sfx('clear');
   const f=document.createElement('div'); f.className='clear-board '+(ok?'':'bad'); f.innerHTML=`<div class="n" style="font-size:34px">${ok?'정답':'오답'}</div><div class="s">${RUN.i+1}/${RUN.acts.length}</div>`;
   $('.play').appendChild(f); setTimeout(()=>f.classList.add('out'),650);
   setTimeout(()=>{ f.remove(); if(!RUN) return; RUN.i++; RUN.i>=RUN.acts.length?finishTest():renderAct(); },950);
@@ -1324,7 +1357,7 @@ function testNext(ok){
 
 // ---------- 레벨 완료 ----------
 function finishLevel(){
-  const r=RUN, key=r.key, i=r.lvl; RUN=null;
+  const r=RUN, key=r.key, i=r.lvl; RUN=null; setTimeout(()=>sfx('level'),250);
   let gained=0;
   if(!r.review){
     S.prog[key]=S.prog[key]||{}; S.prog[key][i]=dayNo(); S.xp+=LEVEL_XP; gained=LEVEL_XP;
@@ -1740,7 +1773,7 @@ function kongDict(){
     <div style="font-size:12px;color:var(--muted);text-align:center;margin:14px 0 4px">표현을 누르면 발음을 들려줘요</div></div>`,'practice');
 }
 function finishBonus(){
-  const r=RUN; RUN=null; S.xp+=20; save();
+  const r=RUN; RUN=null; S.xp+=20; save(); setTimeout(()=>sfx('level'),250);
   const wk=r.kind==='clinic'?weakest():null;
   setScreen(`<div class="res-big">${W(150,'joy')}<h1>${r.kind==='clinic'?'발음 클리닉 완료!':'콩글리시 교정 완료!'}</h1>
     <p>틀려도 괜찮아요. 하트도 벌칙도 없이 끝까지 해냈어요 💙</p>
