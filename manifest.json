@@ -1,7 +1,7 @@
 {
-  "name": "워디 WORDY - Your AI Word Buddy",
+  "name": "워디 WORDY - 하루 한 레벨 영어 챌린지",
   "short_name": "워디",
-  "description": "언어 공부, 이제 워디와 함께. 레벨테스트, 단어·문장 듣고 말하기, 단어 게임, 워디 꾸미기",
+  "description": "하루 한 레벨, 게임처럼 쌓는 영어. 그림·어순·듣기·발음 게임, 한국인 맞춤 발음 클리닉, 콩글리시 교정, 워디 꾸미기",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -10,8 +10,21 @@
   "theme_color": "#2F6BFF",
   "lang": "ko",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
