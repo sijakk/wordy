@@ -746,7 +746,7 @@ function mascot(size=120,mood='happy',outfit=null,cls=''){
   </svg>`;
 }
 const W=(size,mood='happy')=>mascot(size,mood,S.outfit); // 꾸민 워디
-const itemUnlocked=k=>{const it=ITEMS[k];return it.tier!=null?(S.tested&&S.tier>=it.tier):!!(S.owned&&S.owned[k])};
+const itemUnlocked=k=>{const it=ITEMS[k];return it.tier!=null?(Math.max(S.tested?S.tier:0,S.bestTier||0)>=it.tier):!!(S.owned&&S.owned[k])};
 const POINT_PER_DAY=40; const itemDays=k=>Math.max(1,Math.round(ITEMS[k].price/POINT_PER_DAY));
 const itemCond=k=>{const it=ITEMS[k];return it.tier!=null?`🏆 ${TIERS[it.tier].ko} 달성`:`💎 ${it.price}P`};
 const MOODS=['happy','joy','wow'];
@@ -1303,7 +1303,7 @@ function finishTest(){
   if(first){ S.tier=nt; S.sec=0; S.open[SK()]=1; S.tested=true; msg=`${TIERS[nt].ko} 1섹션부터 시작해요!`; }
   else if(nt>prev){ S.tier=nt; S.sec=0; S.open[SK()]=1; msg=`🎉 ${TIERS[prev].ko} → ${TIERS[nt].ko} 승급! ${TIERS[nt].ko} 1섹션이 무료로 열렸어요.`; }
   else msg=`지금 티어 <b>${TIERS[prev].ko}</b>를 유지해요. 다음 섹션으로 넘어가 실력을 더 쌓아요.`;
-  S.ticket=null; save();
+  S.bestTier=Math.max(S.bestTier||0,S.tier); S.ticket=null; save();
   setScreen(`<div class="result"><div class="emb">${emblem(first||nt>prev?nt:prev,150)}</div>
     <div class="label" style="margin-top:8px">${first?'나의 시작 티어':'레벨 테스트 결과'}</div><h1>${TIERS[first||nt>prev?nt:prev].ko}</h1>
     <div class="score"><div class="stat"><b class="en">${c}/10</b><small>정답</small></div><div class="stat"><b>${TIERS[nt].ko}</b><small>테스트 실력</small></div></div>
@@ -1715,6 +1715,7 @@ function me(){
     <div class="card" style="font-size:13.5px;line-height:1.7;color:var(--ink2)">• 하루에 1레벨씩 무료로 열려요 · 기다리기 싫으면 💎${EARLY_COST}P로 바로 열기<br>• 레벨 도전 💎${LEVEL_COST}P · 다음 섹션 열기 💎${SECTION_COST}P<br>• 레벨 완료 +${LEVEL_XP} XP · 14레벨(${TEST_XP} XP)을 채우면 레벨 테스트<br>• 테스트로 더 높은 티어가 나오면 승급, 그 티어 1섹션은 무료</div>
     <div class="sec-title">고객 지원</div>
     <div class="list">${lk('privacy.html','개인정보처리방침')}${lk('terms.html','이용약관')}${lk('contact.html','문의하기')}</div>
+    <div class="list" style="margin-top:14px"><button onclick="resetLearning()" style="color:var(--red)">학습 초기화 <span>→</span></button></div>
     ${DEV?`<div class="sec-title">📱 이 기기 환경 점검</div><div class="card" style="font-size:13px;line-height:1.8;color:var(--ink2)">${envInfo()}</div>`:''}
     ${DEV?`<div class="sec-title">🧪 테스트 도구 <span class="label">출시 전 삭제</span></div>
     <div class="list"><button onclick="devDay();me()">하루 지나기 <span>다음 레벨 열기</span></button>
@@ -1723,6 +1724,20 @@ function me(){
       <button onclick="confirmBox('처음부터 다시','모든 기록을 지우고 처음 화면으로 돌아가요.','초기화',()=>{try{localStorage.removeItem(LS)}catch(e){}location.reload()})">처음부터 다시 <span>초기화</span></button></div>`:''}
     <div style="text-align:center;margin:28px 0 8px;color:var(--muted);font-size:12px;line-height:1.7"><b class="en" style="font-size:16px;color:var(--coral);letter-spacing:.06em">WORDY</b><br>하루 한 레벨, 워디와 챌린지.<br>문의 support.wordy@gmail.com</div>
   </div>`,'me');
+}
+// 학습 초기화: 학습 기록만 지우고 포인트·워디 꾸미기·이름은 그대로
+function resetLearning(){
+  const d=sheet(`<div style="text-align:center">${W(90,'wow')}</div><h3 style="text-align:center">학습을 초기화할까요?</h3>
+    <p style="text-align:center"><b style="color:var(--red)">학습과 관련된 모든 정보가 초기화됩니다.</b><br>되돌릴 수 없어요.</p>
+    <div class="hint-box" style="font-size:13px;line-height:1.7">🗑 <b>초기화돼요</b> · 티어, 섹션·레벨 진도, XP, 연속 학습일, 레벨 테스트 결과, 발음 클리닉 기록<br>💎 <b>그대로 남아요</b> · 포인트, 워디 꾸미기(산 아이템·입은 옷·받은 망토), 이름</div>
+    <div style="display:flex;gap:10px"><button class="btn btn-soft" id="rNo">취소</button><button class="btn btn-primary" style="background:var(--red);box-shadow:none" id="rOk">초기화하기</button></div>`);
+  d.querySelector('#rNo').onclick=()=>d.remove();
+  d.querySelector('#rOk').onclick=()=>{
+    d.remove();
+    S.bestTier=Math.max(S.bestTier||0,S.tested?S.tier:0);
+    Object.assign(S,{tested:false,tier:0,sec:0,xp:0,prog:{},paid:{},open:{'0-0':1},ticket:null,early:{},streak:0,lastDay:-1,clinic:{}});
+    save(); toast('학습 기록을 초기화했어요'); go('testIntro');
+  };
 }
 function envInfo(){
   let vs=0; try{ vs=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang)).length; }catch(e){}
