@@ -1057,27 +1057,41 @@ try{ speechSynthesis.addEventListener('voiceschanged',()=>{VOICE=null;}); }catch
 // 크롬 음성 버그 대비: ①멈춤 상태 풀기(resume) ②멈춘 직후 바로 말하면 씹히니 살짝 쉬고 말하기
 // ③0.6초 안에 시작 안 하면 한 번 더 시도 ④말하는 도중 사라지지 않게 붙잡아 두기
 let UTT=null;
-function ssSpeak(text,rate,voice,onend){
+function ssSpeak(text,rate,voice,onend,onstart){
   const ss=window.speechSynthesis; if(!ss){ if(onend) onend(); return; }
   let tries=0, done=false;
   const fin=()=>{ if(done) return; done=true; if(onend) onend(); };
   const go=()=>{
     tries++;
     const u=new SpeechSynthesisUtterance(text); u.lang='en-US'; u.rate=rate; if(voice){u.voice=voice;u.lang=voice.lang;}
-    let started=false; u.onstart=()=>{started=true;}; u.onend=fin; u.onerror=e=>{ if(e&&e.error==='interrupted') return; if(started) fin(); };
+    let started=false; u.onstart=()=>{started=true; if(onstart) onstart();}; u.onend=fin;
+    u.onerror=e=>{ if(e&&e.error==='interrupted') return; if(started) return fin(); if(tries<3){ setTimeout(go,150); } else fin(); };
     UTT=u;
     try{ ss.resume(); ss.speak(u); }catch(e){ fin(); return; }
-    setTimeout(()=>{ if(!started&&!done&&UTT===u){ if(tries<2){ try{ss.cancel();ss.resume();}catch(e){} setTimeout(go,80); } else fin(); } },600);
+    setTimeout(()=>{ if(!started&&!done&&UTT===u){ if(tries<3){ try{ss.cancel();ss.resume();}catch(e){} setTimeout(go,80); } else fin(); } },600);
   };
   try{ if(ss.speaking||ss.pending||ss.paused){ ss.cancel(); setTimeout(go,60); } else go(); }catch(e){ go(); }
 }
-function speakFast(w){ const mp3=audioFor(w)||audioFor(tidy(w)); if(mp3&&AUD){ LAST=playFile(mp3); return; } if(NATIVE){ try{ NATIVE.stopSpeak(); }catch(e){} LAST=nativeSpeak(tidy(w)); return; }
+let FAST=null;   // 방금 누른 단어 소리가 실제로 시작됐는지
+function speakFast(w){ const t=tidy(w), mp3=audioFor(w)||audioFor(t);
+  if(NATIVE){ try{ NATIVE.stopSpeak(); }catch(e){} LAST=nativeSpeak(t); return; }
+  if(mp3&&AUD){ LAST=playFile(mp3).then(ok=>ok?undefined:new Promise(res=>ssSpeak(t,1,fastVoice(),res))); return; }
   try{ if(TTS_ON&&TTS.stop) TTS.stop(); }catch(e){} try{ if(AUD&&!AUD.paused) AUD.pause(); }catch(e){}
-  LAST=new Promise(res=>ssSpeak(tidy(w),1,fastVoice(),res)); }
+  const f=FAST={text:t,started:false,at:Date.now()};
+  LAST=new Promise(res=>ssSpeak(t,1,fastVoice(),res,()=>{f.started=true;})); }
+// 휴대폰은 손가락을 "뗄 때(클릭)"를 확실한 누름으로 쳐요 → 그때 ①음성 기능을 소리 없이 깨우고 ②방금 소리가 막혔으면 다시 말해요
+let PRIMED=false;
+function primeVoice(){ if(PRIMED||NATIVE||!window.speechSynthesis) return; PRIMED=true; try{ const u=new SpeechSynthesisUtterance('ok'); u.volume=0; u.rate=2; u.lang='en-US'; speechSynthesis.speak(u); }catch(e){} }
+document.addEventListener('click',()=>{
+  const f=FAST;
+  if(f&&!f.started&&Date.now()-f.at<1500){ setTimeout(()=>{ if(!f.started&&FAST===f){ FAST=null; try{speechSynthesis.cancel();speechSynthesis.resume();}catch(e){} LAST=new Promise(res=>ssSpeak(f.text,1,fastVoice(),res,()=>{f.started=true;})); } },250); }
+  else if(!PRIMED&&!(f&&Date.now()-f.at<1500)) primeVoice();
+},true);
+document.addEventListener('touchend',()=>{ if(!PRIMED&&!(FAST&&Date.now()-FAST.at<1500)) primeVoice(); },{capture:true,passive:true});
 // 첫 소리는 기기가 음성을 불러오느라 늦어요 → 처음 화면을 누를 때 소리 없이 한 번 미리 깨워 둬요
 let WARM=false;
 function warmVoice(){ if(WARM) return; WARM=true; try{ fastVoice(); const u=new SpeechSynthesisUtterance(' '); u.volume=0; u.lang='en-US'; speechSynthesis.speak(u); }catch(e){} }
-document.addEventListener('pointerdown',warmVoice,{capture:true,once:true});
+document.addEventListener('pointerdown',()=>{ try{ fastVoice(); }catch(e){} },{capture:true,once:true});
 function deviceSpeak(text,slow){
   return new Promise(res=>{
     if(!('speechSynthesis' in window)) return res();
@@ -1168,11 +1182,12 @@ const sayPass=(target,said,alts)=>[said,...(alts||[])].some(x=>sayPassOne(target
 const KIND_OK=['괜찮아요! 다시 골라 봐요 💙','틀려도 괜찮아요, 한 번 더! 🐻','거의 다 왔어요! 다시 해 봐요','실수는 배우는 중이라는 뜻이에요 💪'];
 let RUN=null;
 function startLevel(i,review){
+  primeVoice();
   const lv=buildLevel(S.tier,S.sec,i);
   RUN={mode:'level',i:0,lvl:i,acts:lv.acts,sample:lv.sample,review:!!review,first:0,key:SK()};
   playScreen();
 }
-function startTest(){ RUN={mode:'test',i:0,acts:buildTest(),correct:0}; playScreen(); }
+function startTest(){ primeVoice(); RUN={mode:'test',i:0,acts:buildTest(),correct:0}; playScreen(); }
 function playScreen(){
   setScreen(`<div class="play"><div class="ptop"><button class="iconbtn" onclick="quitRun()">${I.x}</button><div class="progress"><i id="pbar"></i></div><span class="cnt" id="pcnt"></span></div>
     <div class="pbody" id="pbody"></div><div class="pfoot" id="pfoot"></div></div>`);
@@ -1338,17 +1353,31 @@ function sfx(kind){ try{ sfxInit(); if(!ACX) return; const t=ACX.currentTime+0.0
   else if(kind==='level'){ [1046.5,1318.5,1568,2093].forEach((f,k)=>tone(f,t+k*0.11,k===3?0.8:0.3,0.2)); } // 레벨 완료
   else if(kind==='wrong'){ tone(330,t,0.18,0.12); }
 }catch(e){} }
+// 정답 → ① 정답 발음을 먼저 끝까지 읽고 → ② CLEAR 점수판과 함께 "띠링" → ③ 다음 문제
+const SAY_ON_CLEAR={listenPic:a=>a.w, spell:a=>a.w, order:a=>a.en};   // 정답을 눌러도 소리가 안 나던 문제는 여기서 읽어 줘요
+const NO_SAY={sayW:1,sayS:1};                                          // 직접 말한 문제는 다시 읽지 않아요
 function clearAct(sub,cls='',wait=1150){
   const a=RUN.acts[RUN.i]; if(a.cleared) return; a.cleared=true; if(!a.tries) RUN.first++;
   micAbort(); micUI();
-  sfx('clear');
-  const f=document.createElement('div'); f.className='clear-board '+cls; f.innerHTML=`<div class="n">CLEAR!</div><div class="s">${sub}</div>`;
-  $('.play').appendChild(f);
-  setTimeout(()=>f.classList.add('out'),wait-300);
-  const waitAudio=Promise.race([LAST.catch(()=>{}),new Promise(r=>setTimeout(r,3500))]);
-  setTimeout(()=>{ f.remove(); waitAudio.then(()=>{ if(!RUN) return; RUN.i++; RUN.i>=RUN.acts.length?(RUN.mode==='bonus'?finishBonus():finishLevel()):renderAct(); }); },wait);
+  let pre=Promise.resolve();
+  if(!NO_SAY[a.k]){
+    if(SAY_ON_CLEAR[a.k]) speak(SAY_ON_CLEAR[a.k](a));   // 그림·객관식·짝꿍·듣고 문장은 이미 읽는 중(LAST)
+    pre=Promise.race([LAST.catch(()=>{}),new Promise(r=>setTimeout(r,4000))]);
+  }
+  pre.then(()=>new Promise(r=>setTimeout(r,NO_SAY[a.k]?0:120))).then(()=>{
+    if(!RUN||RUN.acts[RUN.i]!==a) return;
+    sfx('clear');
+    const f=document.createElement('div'); f.className='clear-board '+cls; f.innerHTML=`<div class="n">CLEAR!</div><div class="s">${sub}</div>`;
+    $('.play').appendChild(f);
+    setTimeout(()=>f.classList.add('out'),wait-300);
+    setTimeout(()=>{ f.remove(); if(!RUN) return; RUN.i++; RUN.i>=RUN.acts.length?(RUN.mode==='bonus'?finishBonus():finishLevel()):renderAct(); },wait);
+  });
 }
 function testNext(ok){
+  if(RUN.__busy) return; RUN.__busy=true;
+  Promise.race([LAST.catch(()=>{}),new Promise(r=>setTimeout(r,3000))]).then(()=>{ if(RUN){ RUN.__busy=false; testShow(ok); } });
+}
+function testShow(ok){
   if(ok) RUN.correct++; if(ok) sfx('clear');
   const f=document.createElement('div'); f.className='clear-board '+(ok?'':'bad'); f.innerHTML=`<div class="n" style="font-size:34px">${ok?'정답':'오답'}</div><div class="s">${RUN.i+1}/${RUN.acts.length}</div>`;
   $('.play').appendChild(f); setTimeout(()=>f.classList.add('out'),650);
@@ -1664,6 +1693,7 @@ function clinicActs(c){
   return acts;
 }
 function startBonus(kind,id){
+  primeVoice();
   const acts=kind==='clinic'?clinicActs(id?CLI_BY[id]:(weakest()||CLINIC[Math.floor(Math.random()*CLINIC.length)])):kongActs();
   RUN={mode:'bonus',kind,i:0,acts,first:0}; playScreen();
 }
