@@ -619,6 +619,8 @@ html.is-app .app{max-width:none;max-height:none;height:100dvh;border-radius:0;bo
 .kdr small{font-size:12px;color:var(--muted);line-height:1.45}
 .kdr .sp{color:var(--coral);opacity:.7}
 .kdr .sp svg{width:20px;height:20px}
+.opt.sel{border-color:var(--coral);background:var(--coral-soft);color:var(--coral)}
+.optE.sel{border-color:var(--coral);background:var(--coral-soft);transform:scale(1.03)}
 
 html,body{min-height:100%;height:auto}
 body{flex-direction:column;justify-content:flex-start;min-height:100dvh}
@@ -1251,13 +1253,21 @@ function renderAct(){
 }
 // 객관식
 function bindChoice(sel,ans){
-  const a=RUN.acts[RUN.i];
+  const a=RUN.acts[RUN.i]; let pick=null;
+  $('#pfoot').innerHTML=`<button class="btn btn-primary" id="cOk" disabled>확인</button>`;
+  const okBtn=$('#cOk');
   document.querySelectorAll(sel).forEach(b=>b.onpointerdown=()=>{
-    if(a.locked) return; const ok=b.dataset.v===ans; if(a.k==='pic'||a.k==='minimal'||a.k==='sit') speakFast(b.dataset.v); if(a.snd&&!a.tracked){ a.tracked=1; track(a.snd,ok); }
-    if(RUN.mode==='test'){ a.locked=true; b.classList.add(ok?'ok':'no'); if(!ok) document.querySelectorAll(sel).forEach(x=>{if(x.dataset.v===ans)x.classList.add('ok')}); return testNext(ok); }
-    if(ok){ a.locked=true; b.classList.add('ok'); if(a.tip) toast(a.tip); clearAct(a.tries?'정답이에요':'한 번에 정답!',a.tip?'':'',a.tip?1900:1150); }
-    else { a.tries++; if(a.tries===1) toast(KIND_OK[Math.floor(Math.random()*KIND_OK.length)]); b.classList.add('no','shake'); b.disabled=true; if(a.k==='listenPic') setTimeout(()=>speak(a.w),300); }
+    if(a.locked||b.disabled) return;
+    document.querySelectorAll(sel).forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); pick=b; okBtn.disabled=false;
+    if(a.k==='pic'||a.k==='minimal'||a.k==='sit') speakFast(b.dataset.v);   // 고르면 바로 발음
   });
+  okBtn.onclick=()=>{
+    if(!pick||a.locked) return; const b=pick, good=b.dataset.v===ans; b.classList.remove('sel');
+    if(a.snd&&!a.tracked){ a.tracked=1; track(a.snd,good); }
+    if(RUN.mode==='test'){ a.locked=true; okBtn.disabled=true; b.classList.add(good?'ok':'no'); if(!good) document.querySelectorAll(sel).forEach(x=>{if(x.dataset.v===ans)x.classList.add('ok')}); return testNext(good); }
+    if(good){ a.locked=true; okBtn.disabled=true; b.classList.add('ok'); if(a.tip) toast(a.tip); clearAct(a.tries?'정답이에요':'한 번에 정답!','',a.tip?1900:1150); }
+    else { a.tries++; if(a.tries===1) toast(KIND_OK[Math.floor(Math.random()*KIND_OK.length)]); sfx('wrong'); b.classList.add('no','shake'); b.disabled=true; pick=null; okBtn.disabled=true; if(a.k==='listenPic') setTimeout(()=>speak(a.w),300); }
+  };
 }
 // 짝꿍
 function bindPair(a){
@@ -1297,7 +1307,7 @@ function checkTiles(a){
   const ok=isSp?user.join('').toLowerCase()===ans.join('').toLowerCase():user.map(norm).join(' ')===ans.map(norm).join(' ');
   const full=isSp?a.w:a.en;
   if(RUN.mode==='test'){ if(!ok) toast('정답: '+esc(full)); return testNext(ok); }
-  if(ok){ if(!isSp) $('#ans').classList.add('ok'); else $('#slots').classList.add('ok'); $('#pfoot').innerHTML=''; if(a.k==='build') speak(a.en); clearAct(a.tries?'맞혔어요':'한 번에 정답!'); return; }
+  if(ok){ if(!isSp) $('#ans').classList.add('ok'); else $('#slots').classList.add('ok'); $('#pfoot').innerHTML=''; clearAct(a.tries?'맞혔어요':'한 번에 정답!'); return; }
   a.tries++;
   // 비슷한지 / 아예 다른지 판단해서 힌트 창
   let sim, lines;
@@ -1323,7 +1333,7 @@ function checkTiles(a){
     isSp?drawSpell(a):drawTiles(a); tileFoot(a); if(a.k!=='order') speak(full,true); };
   const ha=d.querySelector('#hAns'); if(ha) ha.onclick=()=>{ d.remove(); const used=new Set();
     a.pick=ans.map(c=>{const x=a.bank.find(b=>!used.has(b)&&b.c===c); used.add(x); return x;}); a.mark=null;
-    isSp?drawSpell(a):drawTiles(a); (isSp?$('#slots'):$('#ans')).classList.add('ok'); $('#pfoot').innerHTML=''; speak(full); clearAct('정답을 확인했어요','soft',1800); };
+    isSp?drawSpell(a):drawTiles(a); (isSp?$('#slots'):$('#ans')).classList.add('ok'); $('#pfoot').innerHTML=''; a.revealed=true; speak(full); clearAct('정답을 확인했어요','soft',2200); };
 }
 // 발음 결과
 function onSaid(a,tgt,said,alts,err){
@@ -1364,29 +1374,22 @@ function sfx(kind){ try{ sfxInit(); if(!ACX) return; const t=ACX.currentTime+0.0
   else if(kind==='level'){ [1046.5,1318.5,1568,2093].forEach((f,k)=>tone(f,t+k*0.11,k===3?0.8:0.3,0.2)); } // 레벨 완료
   else if(kind==='wrong'){ tone(330,t,0.18,0.12); }
 }catch(e){} }
-// 정답 → ① 정답 발음을 먼저 끝까지 읽고 → ② CLEAR 점수판과 함께 "띠링" → ③ 다음 문제
-const SAY_ON_CLEAR={listenPic:a=>a.w, spell:a=>a.w, order:a=>a.en};   // 정답을 눌러도 소리가 안 나던 문제는 여기서 읽어 줘요
-const NO_SAY={sayW:1,sayS:1};                                          // 직접 말한 문제는 다시 읽지 않아요
+// 확인(또는 다 맞힘) → 바로 CLEAR 점수판 + "띠링" → 필요한 문제는 띠링 뒤에 정답 발음 → 다음 문제
+const SAY_ON_CLEAR={listenPic:a=>a.w, spell:a=>a.w, order:a=>a.en, build:a=>a.en};
 function clearAct(sub,cls='',wait=1150){
   const a=RUN.acts[RUN.i]; if(a.cleared) return; a.cleared=true; if(!a.tries) RUN.first++;
   micAbort(); micUI();
-  let pre=Promise.resolve();
-  if(!NO_SAY[a.k]){
-    if(SAY_ON_CLEAR[a.k]) speak(SAY_ON_CLEAR[a.k](a));   // 그림·객관식·짝꿍·듣고 문장은 이미 읽는 중(LAST)
-    pre=Promise.race([LAST.catch(()=>{}),new Promise(r=>setTimeout(r,4000))]);
-  }
-  pre.then(()=>new Promise(r=>setTimeout(r,NO_SAY[a.k]?0:120))).then(()=>{
-    if(!RUN||RUN.acts[RUN.i]!==a) return;
-    sfx('clear');
-    const f=document.createElement('div'); f.className='clear-board '+cls; f.innerHTML=`<div class="n">CLEAR!</div><div class="s">${sub}</div>`;
-    $('.play').appendChild(f);
-    setTimeout(()=>f.classList.add('out'),wait-300);
-    setTimeout(()=>{ f.remove(); if(!RUN) return; RUN.i++; RUN.i>=RUN.acts.length?(RUN.mode==='bonus'?finishBonus():finishLevel()):renderAct(); },wait);
-  });
+  sfx('clear');
+  const f=document.createElement('div'); f.className='clear-board '+cls; f.innerHTML=`<div class="n">CLEAR!</div><div class="s">${sub}</div>`;
+  $('.play').appendChild(f);
+  if(SAY_ON_CLEAR[a.k]&&!a.revealed) setTimeout(()=>{ if(RUN&&RUN.acts[RUN.i]===a) speak(SAY_ON_CLEAR[a.k](a)); },380);
+  setTimeout(()=>f.classList.add('out'),wait-300);
+  setTimeout(()=>{ f.remove();
+    Promise.race([LAST.catch(()=>{}),new Promise(r=>setTimeout(r,3500))]).then(()=>{ if(!RUN||RUN.acts[RUN.i]!==a) return; RUN.i++; RUN.i>=RUN.acts.length?(RUN.mode==='bonus'?finishBonus():finishLevel()):renderAct(); });
+  },wait);
 }
 function testNext(ok){
-  if(RUN.__busy) return; RUN.__busy=true;
-  Promise.race([LAST.catch(()=>{}),new Promise(r=>setTimeout(r,3000))]).then(()=>{ if(RUN){ RUN.__busy=false; testShow(ok); } });
+  if(RUN.__busy) return; RUN.__busy=true; testShow(ok); setTimeout(()=>{ if(RUN) RUN.__busy=false; },900);
 }
 function testShow(ok){
   if(ok) RUN.correct++; if(ok) sfx('clear');
