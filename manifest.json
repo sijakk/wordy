@@ -2,7 +2,7 @@
   "name": "워디 WORDY - 하루 한 레벨 영어 챌린지",
   "short_name": "워디",
   "description": "하루 한 레벨, 게임처럼 쌓는 영어. 그림·어순·듣기·발음 게임, 한국인 맞춤 발음 클리닉, 콩글리시 교정, 워디 꾸미기",
-  "start_url": "./",
+  "start_url": "app.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

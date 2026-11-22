@@ -3,6 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<script>window.__BUILD='web'</script>
+<script>
+/* 카카오톡·네이버·인스타 등 앱 안 브라우저에서 열면 사파리·크롬·삼성 인터넷으로 내보내요 (마이크·소리가 막히는 경우가 많아서) */
+(function(){
+  var ua=navigator.userAgent||'', url=location.href;
+  if(/WordyApp/.test(ua)) return;
+  var and=/Android/i.test(ua), ios=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/.test(ua)&&'ontouchend' in document);
+  if(/KAKAOTALK/i.test(ua)){ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(url); window.__INAPP='kakao'; }
+  else if(/ Line\//i.test(ua)){ if(url.indexOf('openExternalBrowser=1')<0){ location.replace(url+(url.indexOf('?')<0?'?':'&')+'openExternalBrowser=1'); } window.__INAPP='line'; }
+  else if(/NAVER\(inapp|NAVER\/|Instagram|FBAN|FBAV|FB_IAB|DaumApps|everytimeApp|BAND\/|Snapchat|Twitter|kakaostory/i.test(ua)){
+    window.__INAPP='etc';
+    if(and) location.href='intent://'+url.replace(/^https?:\/\//,'')+'#Intent;scheme=https;S.browser_fallback_url='+encodeURIComponent(url)+';end';
+  }
+  if(!window.__INAPP) return;
+  // 자동으로 안 넘어가면 안내 화면
+  window.addEventListener('DOMContentLoaded',function(){ setTimeout(function(){
+    var host=url.replace(/^https?:\/\//,''), d=document.createElement('div'); d.className='escape';
+    var btns=and?
+      '<a class="eb" href="intent://'+host+'#Intent;scheme=https;package=com.android.chrome;end">크롬으로 열기</a>'+
+      '<a class="eb alt" href="intent://'+host+'#Intent;scheme=https;package=com.sec.android.app.sbrowser;end">삼성 인터넷으로 열기</a>'
+      :(window.__INAPP==='kakao'?'<a class="eb" href="kakaotalk://web/openExternal?url='+encodeURIComponent(url)+'">사파리로 열기</a>':'<a class="eb" href="x-safari-'+url+'">사파리로 열기</a>');
+    d.innerHTML='<div class="ebox"><div style="font-size:46px">🐻</div><h2>브라우저에서 열어 주세요</h2>'+
+      '<p>지금 화면은 '+(window.__INAPP==='kakao'?'카카오톡':'앱')+' 안이라 마이크와 소리가 잘 안 될 수 있어요.<br>'+(and?'크롬이나 삼성 인터넷':'사파리')+'에서 열면 워디를 제대로 쓸 수 있어요.</p>'+btns+
+      '<button class="eb ghost" id="ecopy">링크 복사하기</button>'+
+      '<p class="small">버튼이 안 되면 화면 '+(ios?'아래':'위')+' <b>⋯</b> 또는 <b>⋮</b> 메뉴 → <b>'+(ios?'Safari로 열기':'다른 브라우저로 열기')+'</b>를 눌러 주세요.</p>'+
+      '<button class="eb link" id="estay">그냥 여기서 볼게요</button></div>';
+    document.body.appendChild(d);
+    document.getElementById('estay').onclick=function(){ d.remove(); };
+    document.getElementById('ecopy').onclick=function(){ var b=this; function ok(){ b.textContent='복사했어요 ✓ 브라우저 주소창에 붙여 넣어 주세요'; }
+      try{ navigator.clipboard.writeText(url).then(ok,function(){ fb(); }); }catch(e){ fb(); }
+      function fb(){ var t=document.createElement('textarea'); t.value=url; document.body.appendChild(t); t.select(); try{document.execCommand('copy'); ok();}catch(e){} t.remove(); } };
+  },1200); });
+})();
+</script>
 <meta name="description" content="워디(WORDY) - 하루 한 레벨, 게임처럼 쌓는 영어. 그림·어순·듣기·발음 게임, 한국인 맞춤 발음 클리닉, 콩글리시 교정. 틀려도 괜찮아요, 워디가 도와줘요.">
 <meta name="theme-color" content="#2F6BFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,7 +45,11 @@
 <meta name="apple-mobile-web-app-title" content="워디">
 <meta property="og:title" content="워디 WORDY - 하루 한 레벨, 게임처럼 쌓는 영어">
 <meta property="og:description" content="그림·어순·듣기·발음 게임 · 한국인 맞춤 발음 클리닉 · 콩글리시 교정 · 워디 꾸미기">
-<meta property="og:image" content="icon-512.png">
+<meta property="og:image" content="https://wordy.kr/icon-512.png">
+<meta property="og:url" content="https://wordy.kr/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="워디 WORDY">
+<meta name="twitter:card" content="summary">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -492,6 +530,95 @@ button{touch-action:manipulation;user-select:none;-webkit-user-select:none}
 html.is-app body{background:var(--bg)}
 html.is-app .app{max-width:none;max-height:none;height:100dvh;border-radius:0;box-shadow:none}
 .app{padding-top:env(safe-area-inset-top)}
+/* 홈 정리 */
+.home2{display:flex;flex-direction:column;gap:12px}
+.home2 .today{margin-top:0}
+.tierbar{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:linear-gradient(135deg,#1C3A8C,#12245E);color:#fff;border-radius:22px;padding:12px 14px}
+.tierbar .tx{flex:1;display:flex;flex-direction:column;gap:5px}
+.tierbar b{font-size:14.5px;font-weight:800}
+.tierbar small{font-size:11.5px;opacity:.75}
+.tierbar .chev{font-size:24px;opacity:.6}
+.mini2{display:block;height:6px;border-radius:6px;background:rgba(255,255,255,.18);overflow:hidden}
+.mini2 i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#5B8CFF,#9DE0FF)}
+.nopen{margin-top:12px;text-align:center;font-size:12px;color:var(--coral);font-weight:700}
+.quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.quick button{background:#fff;border-radius:18px;box-shadow:var(--shadow);padding:12px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center}
+.quick .qi{font-size:26px;line-height:1.1}
+.quick b{font-size:12px;font-weight:800;letter-spacing:-.03em;white-space:nowrap}
+.quick small{font-size:10.5px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pcard{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border-radius:22px;padding:18px 16px;margin-bottom:12px}
+.pcard .qi{width:54px;height:54px;border-radius:18px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+.pcard .tx{flex:1;display:flex;flex-direction:column;gap:4px}
+.pcard b{font-size:16px;font-weight:800}
+.pcard small{font-size:12.5px;color:var(--ink2);line-height:1.45}
+.pcard em{font-style:normal;font-size:12px;font-weight:800;color:var(--red)}
+.pcard .chev{font-size:22px;color:var(--muted)}
+.tabbar button{padding:4px 6px}
+/* ---- v3: 홈 크기 조정 ---- */
+.list a{display:flex;width:100%;padding:16px 18px;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;border-bottom:1px solid var(--line);text-align:left;color:var(--ink);text-decoration:none}
+.list a:last-child{border-bottom:none}
+.list a span,.list button span{color:var(--muted);font-weight:600;font-size:13.5px}
+.tierbig{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:linear-gradient(135deg,#1C3A8C,#12245E);color:#fff;border-radius:26px;padding:18px 18px 18px 14px;position:relative;overflow:hidden}
+.tierbig:after{content:'';position:absolute;right:-40px;top:-40px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.06)}
+.tierbig .tx{flex:1;display:flex;flex-direction:column;gap:4px;z-index:1}
+.tierbig .tx>small{font-size:11.5px;opacity:.7;font-weight:600}
+.tierbig .tx>b{font-size:26px;font-weight:900;line-height:1.1;letter-spacing:-.02em}
+.tierbig em{font-style:normal;font-size:13px;opacity:.85;margin-bottom:6px}
+.tierbig .row{display:flex;justify-content:space-between;font-size:11.5px;opacity:.85;margin-top:4px}
+.tierbig .row b{font-weight:800}
+.tierbig .mini2{height:7px}
+.qbig{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qbig button{border-radius:22px;padding:18px 14px 16px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;min-height:118px}
+.qbig .qi{font-size:34px;line-height:1;margin-bottom:6px}
+.qbig b{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.qbig small{font-size:12px;color:var(--ink2);font-weight:600;line-height:1.4}
+
+/* ---- 2주 플래너 ---- */
+.planner{padding:14px 20px 26px;display:flex;flex-direction:column;gap:16px}
+.wk{background:#fff;border-radius:24px;box-shadow:var(--shadow);padding:8px 10px 10px;background-image:repeating-linear-gradient(transparent 0 61px,#EEF3FC 61px 62px)}
+.wkh{display:flex;justify-content:space-between;align-items:center;padding:8px 8px 10px}
+.wkh b{font-size:15px;font-weight:900}
+.wkh span{font-size:12px;color:var(--muted);font-weight:700}
+.dayc{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 8px;border-radius:16px;min-height:62px;transition:background .15s}
+.dayc:active{background:var(--bg)}
+.dnum{width:46px;height:46px;border-radius:14px;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.dnum small{font:800 9px Outfit;letter-spacing:.08em;color:var(--muted)}
+.dnum b{font:900 19px Outfit;color:var(--ink2)}
+.dtx{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.dtx b{font-size:14.5px;font-weight:800;line-height:1.35}
+.dtx b em{font-style:normal;font-size:11px;background:var(--yellow);color:var(--ink);padding:1px 7px;border-radius:7px;margin-left:4px;vertical-align:1px}
+.dtx small{font-size:12px;color:var(--muted);font-weight:600}
+.dayc.done .dnum{background:var(--mint-soft)}.dayc.done .dnum b{color:var(--mint)}
+.dayc.open,.dayc.pay{background:var(--coral-soft);box-shadow:inset 0 0 0 2px var(--coral)}
+.dayc.open .dnum,.dayc.pay .dnum{background:var(--coral)}.dayc.open .dnum *,.dayc.pay .dnum *{color:#fff}
+.dayc.open small,.dayc.pay small{color:var(--coral)}
+.dayc.locked{opacity:.5}
+.dic{width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.dic svg{width:20px;height:20px}
+.dgo{font:900 13px Outfit;color:#fff;background:var(--coral);padding:8px 12px;border-radius:12px;box-shadow:0 4px 0 #1E4FD0}
+.stamp{width:58px;height:58px;border-radius:50%;border:2.5px solid #EF5D6B;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-12deg);flex-shrink:0;background:rgba(239,93,107,.06)}
+.stamp svg{margin-top:-4px}
+.stamp i{font-style:normal;font-size:8.5px;font-weight:900;color:#EF5D6B;margin-top:-3px;letter-spacing:-.04em}
+
+/* ---- 연습: 큰 카드 ---- */
+.pbig{position:relative;overflow:hidden;width:100%;text-align:left;border-radius:28px;padding:22px 20px 20px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:220px}
+.pbig .pb-art{position:absolute;right:6px;top:14px}
+.pbig .pb-art i{position:absolute;right:-2px;bottom:6px;font-style:normal;font-size:30px;width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.pbig .lab2{font-size:12px;font-weight:800;background:rgba(255,255,255,.2);padding:5px 10px;border-radius:9px}
+.pbig b{font-size:26px;font-weight:900;letter-spacing:-.02em;margin-top:4px}
+.pbig small{font-size:13px;line-height:1.55;opacity:.9;max-width:62%}
+.pbig em{font-style:normal;font-size:12.5px;font-weight:800;background:rgba(255,255,255,.2);padding:7px 11px;border-radius:11px;margin-top:auto}
+.kd{background:#fff;border-radius:22px;box-shadow:var(--shadow);overflow:hidden}
+.kdr{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 16px;border-bottom:1px solid var(--line)}
+.kdr:last-child{border-bottom:none}
+.kdr .em{font-size:28px;width:40px;text-align:center;flex-shrink:0}
+.kdr .tx{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kdr .ko{font-size:13px;color:var(--ink2);font-weight:700}
+.kdr .ko s{color:var(--red);font-weight:600;margin-left:4px;font-family:Outfit}
+.kdr b{font-size:17px;color:var(--coral);font-weight:800}
+.kdr small{font-size:12px;color:var(--muted);line-height:1.45}
+.kdr .sp{color:var(--coral);opacity:.7}
+.kdr .sp svg{width:20px;height:20px}
 
 html,body{min-height:100%;height:auto}
 body{flex-direction:column;justify-content:flex-start;min-height:100dvh}
@@ -515,12 +642,22 @@ body{flex-direction:column;justify-content:flex-start;min-height:100dvh}
 @media (display-mode: standalone){.site-head,.site-foot{display:none}.app{height:100dvh;margin-top:0;max-width:none;max-height:none;border-radius:0}}
 html.is-app .site-head,html.is-app .site-foot{display:none}
 html.is-app .app{height:100dvh;margin-top:0}
+
+.escape{position:fixed;inset:0;z-index:999;background:rgba(15,30,70,.55);display:flex;align-items:center;justify-content:center;padding:20px}
+.ebox{background:#fff;border-radius:26px;padding:26px 22px 18px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.ebox h2{font-size:20px;font-weight:900;margin:6px 0 8px}
+.ebox p{font-size:13.5px;color:var(--ink2);line-height:1.6;margin-bottom:16px}
+.ebox p.small{font-size:12px;color:var(--muted);margin:12px 0 4px}
+.eb{display:block;width:100%;padding:15px;border-radius:16px;background:var(--coral);color:#fff;font-weight:800;font-size:15.5px;text-decoration:none;margin-bottom:8px;border:0;font-family:inherit;cursor:pointer}
+.eb.alt{background:#5B4BDB}
+.eb.ghost{background:var(--coral-soft);color:var(--coral)}
+.eb.link{background:none;color:var(--muted);font-weight:600;font-size:13px;text-decoration:underline;margin:0}
 </style>
 </head>
 <body>
 <header class="site-head"><div class="inner">
 <a class="logo" href="./">WORDY</a>
-<nav><a class="on" href="./">▶ 워디 학습하기</a><a href="learn/">영어 학습</a><a class="hide-m" href="about.html">소개</a><a class="hide-m" href="contact.html">문의</a></nav>
+<nav><a class="on" href="./">▶ 워디 학습하기</a><a class="hide-m" href="app.html">앱 화면</a><a href="learn/">영어 학습</a><a class="hide-m" href="about.html">소개</a><a class="hide-m" href="contact.html">문의</a></nav>
 </div></header>
 <div class="app" id="app">
   <div id="screen"></div>
@@ -558,10 +695,11 @@ const UA=navigator.userAgent||'';
 const NATIVE=window.WordyNative||null;               // 갤럭시 APK: 기기 음성·음성 인식 브리지
 const IS_APP=/WordyApp/.test(UA)||!!NATIVE;
 const IS_IOS=/iPhone|iPad|iPod/i.test(UA)||(/Macintosh/.test(UA)&&'ontouchend' in document);
+const BUILD=window.__BUILD||'artifact';   // web: wordy.kr 사이트 · app: 앱 화면(APK·홈 화면 앱)
 const IN_CLAUDE=/claude\.ai|claudeusercontent|claude\.site/.test(location.href)||location.protocol==='file:';
-// 테스트 도구: Claude 미리보기·앱(APK)·주소 끝 #dev 에서만 보여요 (wordy.kr 일반 방문자에겐 숨김)
-const DEV=IN_CLAUDE||IS_APP||location.hash==='#dev';
-if(IS_APP) document.documentElement.classList.add('is-app');
+// 테스트 도구는 Claude 미리보기에서만 보여요. wordy.kr·앱(APK)은 실제 사용 버전이라 모두 숨겨요.
+const DEV=BUILD==='artifact';
+if(IS_APP||BUILD==='app') document.documentElement.classList.add('is-app');
 
 // ---------- 아이콘 ----------
 const I={
@@ -577,6 +715,7 @@ const I={
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10"/></svg>',
   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
   moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+  target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>',
   trophy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 21h8"/></svg>',
 };
 
@@ -816,9 +955,10 @@ const tierFromScore=c=>c<=3?0:c<=5?1:c===6?2:c===7?3:c===8?4:c===9?5:6;
 // ---------- 상태 ----------
 const LS='wordy_challenge_v1';
 const LEVEL_COST=3, SECTION_COST=20, LEVEL_XP=100, SEC_LEVELS=14, TEST_XP=LEVEL_XP*SEC_LEVELS;
-const AD_POINT=5, AD_LIMIT=10, AD_WATCH=10, AD_STAY=5, EARLY_COST=5;
+const AD_POINT=5, AD_LIMIT=5, AD_WATCH=10, AD_STAY=5, EARLY_COST=5;
 let S={name:'',onb:false,tested:false,tier:0,sec:0,xp:0,points:10,prog:{},paid:{},open:{'0-0':1},ticket:null,dayOff:0,adDay:-1,adCount:0,voice:'female',streak:0,lastDay:-1,outfit:{},owned:{},face:'happy',early:{}};
 try{const raw=localStorage.getItem(LS); if(raw) S=Object.assign(S,JSON.parse(raw));}catch(e){}
+S.voice='female'; // 남성 목소리는 준비 중
 function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
 const dayNo=()=>{const d=new Date();return Math.floor((d.getTime()-d.getTimezoneOffset()*6e4)/864e5)+(S.dayOff||0)};
 const SK=(t=S.tier,s=S.sec)=>t+'-'+s;
@@ -847,7 +987,7 @@ function setScreen(html,tab){
   const tb=$('#tabbar'); if(tab){tb.classList.remove('hidden');renderTabs(tab)} else tb.classList.add('hidden');
 }
 function renderTabs(on){
-  const tabs=[['home','홈',I.home],['map','학습',I.map],['reward','포인트',I.gift],['me','내 정보',I.user]];
+  const tabs=[['home','홈',I.home],['map','학습',I.map],['practice','연습',I.target],['reward','포인트',I.gift],['me','내 정보',I.user]];
   $('#tabbar').innerHTML=tabs.map(([k,l,ic])=>`<button class="${k===on?'on':''}" onclick="go('${k}')">${ic}${l}</button>`).join('');
 }
 function sheet(html,dismiss=true){
@@ -868,7 +1008,7 @@ function spend(n,what,onOk){
   }
   confirmBox(`💎 ${n}P 사용`,`${what}에 포인트 ${n}P를 사용할까요?<br>남는 포인트: 💎${S.points-n}P`,`${n}P 사용하기`,()=>{S.points-=n;save();onOk();});
 }
-function go(r,a){ ({splash,onb:onboard,name:nameScreen,testIntro,home,map:mapScreen,reward,me,closet,clinic,kong:kongScreen})[r](a); }
+function go(r,a){ ({splash,onb:onboard,name:nameScreen,testIntro,home,map:mapScreen,practice,reward,me,closet,clinic,kong:kongScreen,kongDict})[r](a); }
 
 // ---------- 음성 재생 ----------
 const FEMALE_RE=/(Samantha|Ava|Allison|Aria|Jenny|Michelle|Emma|Zira|Susan|Karen|Victoria|Joanna|Google US English|Female)/i;
@@ -878,7 +1018,7 @@ function pickVoice(){ try{ const vs=speechSynthesis.getVoices().filter(v=>/^en[-
 try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
 let TTS=null;
 try{ if(window.claude&&window.claude.use) window.claude.use('tts').then(t=>{ if(!t) return; TTS=t; t.onState(({state})=>(TTS_ON=state==='speaking',document.querySelectorAll('.listen-big').forEach(b=>b.classList.toggle('playing',state==='speaking')))); }).catch(()=>{}); }catch(e){}
-const HQ_VOICE={female:'glassy',male:'buttery'};
+const HQ_VOICE={female:'glassy',male:'glassy'}; // 지금은 여성 목소리만
 let LAST=Promise.resolve();
 // 단어 하나만 읽으면 끝이 툭 끊겨서, 문장처럼 마침표를 붙여 원어민처럼 끝을 끌며 내려가게 읽어요
 const tidy=t=>{t=String(t).trim(); return /[.!?]$/.test(t)?t:t+'.';};
@@ -1199,7 +1339,7 @@ function finishLevel(){
     <div class="res-stats"><div class="stat"><b class="en">${r.first}/${r.acts.length}</b><small>한 번에 정답</small></div><div class="stat"><b class="en">+${gained}</b><small>XP</small></div><div class="stat"><b class="en">${doneCount(key)}/14</b><small>섹션 진도</small></div></div>
     <div class="card" style="text-align:left;font-size:13.5px;line-height:1.6;color:var(--ink2)">${secDone?`🏆 <b style="color:var(--ink)">섹션을 모두 끝냈어요!</b><br>레벨 테스트에 다시 도전할 수 있어요. 승급하거나 다음 섹션으로 넘어가요.`:r.review?'복습은 진도와 XP에 반영되지 않아요.':`🌙 <b style="color:var(--ink)">다음 레벨은 내일 열려요</b><br>${untilMidnight()} 뒤 ${i+2}레벨 「${esc(lvTitle(S.tier,S.sec,i+1))}」에 도전할 수 있어요.`}</div>
     <button class="btn btn-primary" style="margin-top:18px" onclick="go('home')">홈으로</button>
-    ${r.sample?'<p style="font-size:12px;color:var(--muted)">※ 이 레벨은 프로토타입용 샘플 문제로 채워져 있어요</p>':''}</div>`);
+    ${r.sample&&DEV?'<p style="font-size:12px;color:var(--muted)">※ 이 레벨은 프로토타입용 샘플 문제로 채워져 있어요</p>':''}</div>`);
 }
 
 // ---------- 레벨 테스트 ----------
@@ -1282,32 +1422,24 @@ function home(){
       :`<div style="font-size:13px;color:var(--ink2);text-align:center;margin:-4px 0 10px">🌙 오늘 완료! ${untilMidnight()} 뒤에 무료로 열려요</div><button class="btn btn-primary" onclick="tryLevel(${li})">⚡ 지금 바로 열기 <span class="cost">💎 ${EARLY_COST}P</span></button>${li>0?`<button class="btn btn-ghost" onclick="startLevel(${li-1},true)">어제 레벨 복습하기 (무료)</button>`:''}`;
     today=`<div class="today"><div class="bear">${W(86,'happy')}</div><span class="lab">📅 오늘의 챌린지 · DAY ${li+1}</span>
       <h3 style="padding-right:80px">${S.sec+1}섹션 ${li+1}레벨<br>${esc(lvTitle(S.tier,S.sec,li))}</h3>
-      <div class="kinds">${ORDER.map(k=>`<span>${KSHORT[k]}</span>`).join('')}</div>${btn}</div>`;
+      <p style="margin:2px 0 14px">게임 9개 · 약 5분 · 완료하면 +${LEVEL_XP} XP</p>${btn}
+      <div class="nopen">💙 틀려도 괜찮아요 · 하트도 벌칙도 없어요</div></div>`;
   }
   const xpP=Math.min(100,secXP()/TEST_XP*100);
-  setScreen(`<div class="pad">
-    <div class="hello"><div onclick="go('closet')" style="cursor:pointer">${W(50,'happy')}</div><div class="t"><small>${h<12?'좋은 아침이에요':h<18?'좋은 오후예요':'좋은 저녁이에요'} ☀️</small><b>${esc(S.name||'학습자')}님, 오늘도 챌린지!</b></div>
+  const wk=weakest(), owned=Object.keys(S.owned||{}).length;
+  setScreen(`<div class="pad home2">
+    <div class="hello"><div onclick="go('closet')" style="cursor:pointer">${W(46,'happy')}</div><div class="t"><small>${h<12?'좋은 아침이에요':h<18?'좋은 오후예요':'좋은 저녁이에요'}</small><b>${esc(S.name||'학습자')}님, 오늘도 챌린지!</b></div>
       <button class="streak" onclick="go('reward')">💎 <span class="en">${S.points}</span></button><div class="streak">🔥 <span class="en">${S.streak||0}</span></div></div>
-    <div class="hero"><div style="z-index:1">${emblem(S.tier,82)}</div>
-      <div class="info"><small>현재 티어 · ${S.sec+1}섹션 「${esc(sec.n)}」</small><b>${t.ko}</b>
-        <div class="bar"><i style="width:${dc/SEC_LEVELS*100}%"></i></div><div class="goal">섹션 진도 <b class="en">${dc}/14</b>레벨 · 하루 1레벨</div>
-        <div class="xpbar"><i style="width:${xpP}%"></i></div><div class="goal">레벨 테스트까지 <b class="en">${secXP()}/${TEST_XP}</b> XP</div></div></div>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 14px;border-radius:16px;background:var(--coral-soft);font-size:13px;color:var(--ink2)"><span style="font-size:18px">💙</span><span><b style="color:var(--coral)">틀려도 괜찮아요.</b> 하트도 벌칙도 없어요. 워디가 힌트로 끝까지 도와줘요.</span></div>
+    <button class="tierbig" onclick="go('map')">${emblem(S.tier,76)}<span class="tx"><small>현재 티어</small><b>${t.ko}</b><em>${S.sec+1}섹션 「${esc(sec.n)}」</em>
+      <span class="row"><span>섹션 진도</span><b class="en">${dc}/14</b></span><span class="mini2"><i style="width:${dc/SEC_LEVELS*100}%"></i></span>
+      <span class="row"><span>레벨 테스트까지</span><b class="en">${secXP()}/${TEST_XP} XP</b></span><span class="mini2"><i style="width:${xpP}%;background:linear-gradient(90deg,#FFC83D,#FF8A3D)"></i></span></span></button>
     ${today}
-    <div class="sec-title" style="margin-top:20px">워디 스페셜 <span class="label">무료 · 매일 가능</span></div>
-    <div class="grid" style="margin-top:0">
-      <button class="menu" style="background:linear-gradient(135deg,#E2EBFF,#DFF3FC)" onclick="go('clinic')"><span class="ic" style="font-size:24px">👄</span><b>발음 클리닉</b><small>한국인이 헷갈리는 소리<br>${weakest()?`내 약점: <b style="color:var(--red)">${weakest().ko}</b>`:'R/L · F/P · TH · V/B'}</small></button>
-      <button class="menu" style="background:#FDECEC" onclick="go('kong')"><span class="ic" style="font-size:24px">🙅</span><b>콩글리시 교정</b><small>핸드폰 → cell phone<br>진짜 영어로 바꿔요</small></button>
+    <div class="qbig">
+      <button style="background:var(--coral-soft)" onclick="go('map')"><span class="qi">🗓️</span><b>학습 지도</b><small>2주 플래너 · ${dc}/14 완료</small></button>
+      <button style="background:linear-gradient(135deg,#E2EBFF,#DFF3FC)" onclick="go('practice')"><span class="qi">👄</span><b>발음 · 콩글리시</b><small>${wk?`내 약점 <b style="color:var(--red)">${wk.ko}</b>`:'매일 무료 연습'}</small></button>
     </div>
-    <div class="grid">
-      <button class="menu" style="background:var(--coral-soft)" onclick="go('map')"><span class="ic" style="color:var(--coral)">${I.map}</span><b>학습 지도</b><small>섹션별 14레벨<br>진도 한눈에 보기</small></button>
-      <button class="menu" style="background:#FFF3D6" onclick="go('reward')"><span class="ic" style="font-size:24px">📺</span><b>포인트 받기</b><small>광고 보고 💎${AD_POINT}P<br>오늘 ${adLeft()}회 남음</small></button>
-      <button class="menu wide" style="background:var(--mint-soft)" onclick="go('closet')"><span style="width:64px;height:58px;display:flex;align-items:flex-end;justify-content:center">${W(64,'happy')}</span><span class="tx"><b>워디 꾸미기</b><small>티어 망토 · 포인트 상점 옷 입히기</small></span><span style="font-size:22px;color:var(--mint)">→</span></button>
-      <button class="menu wide" style="background:#fff;box-shadow:var(--shadow)" onclick="${canTest?"go('testIntro')":"toast('🔒 이번 섹션 14레벨을 모두 끝내면<br>레벨 테스트에 다시 도전할 수 있어요')"}">
-        <span class="ic" style="background:#FFF3D6;color:#D99A00">${canTest?I.trophy:I.lock}</span>
-        <span class="tx"><b>레벨 테스트 ${canTest?'도전 가능!':'잠김'}</b><small>${canTest?'10문제로 승급에 도전해요':`섹션 XP ${secXP()}/${TEST_XP} · 섹션을 끝내면 열려요`}</small><div class="minibar"><i style="width:${xpP}%"></i></div></span></button>
-    </div>
-    ${DEV?`<button class="toggle" style="margin-top:12px;width:100%" onclick="devDay()">🧪 테스트용: 하루 지나기 (다음 레벨 열기)</button>`:''}
+    <button class="pcard" style="background:#FFF6E0;margin:0" onclick="${canTest?"go('testIntro')":"toast('🔒 이번 섹션 14레벨을 모두 끝내면<br>레벨 테스트에 다시 도전할 수 있어요')"}"><span class="qi">${canTest?'⚔️':'🏆'}</span><span class="tx"><b>레벨 테스트 ${canTest?'· 도전 가능!':''}</b><small>${canTest?'10문제로 승급에 도전해요':'섹션 14레벨을 끝내면 열려요'}</small><span class="mini2" style="background:#F3E2B5"><i style="width:${xpP}%;background:#F2A93B"></i></span></span><span class="chev">${canTest?'›':'🔒'}</span></button>
+    <button class="pcard" style="background:var(--mint-soft);margin:0" onclick="go('closet')"><span class="qi" style="overflow:hidden;align-items:flex-end">${W(50,'happy')}</span><span class="tx"><b>워디 꾸미기</b><small>티어 망토 · 포인트 상점 옷 입히기 · ${owned}개 보유</small></span><span class="chev">›</span></button>
   </div>`,'home');
 }
 function tryLevel(i){
@@ -1329,20 +1461,22 @@ let MAPT=null, MAPS=null;
 function mapScreen(){
   if(MAPT==null){MAPT=S.tier;MAPS=S.sec;}
   const mine=MAPT===S.tier&&MAPS===S.sec, past=MAPT<S.tier||(MAPT===S.tier&&MAPS<S.sec), sec=CURR[MAPT][MAPS];
-  const nodes=sec.lv.map((ttl,i)=>{
+  const row=(ttl,i)=>{
     const st=mine?lvState(i):past?(prog(SK(MAPT,MAPS))[i]!=null?'done':'locked'):'locked';
-    const x=Math.round(Math.sin(i*0.9)*70);
-    const ic=st==='done'?I.check:st==='tomorrow'?I.moon:st==='locked'?I.lock:`<span>${i+1}</span>`;
-    const sub={done:'완료 · 복습 가능',open:'오늘 도전!',pay:`오늘 도전 · 💎${LEVEL_COST}P`,tomorrow:`내일 · 💎${EARLY_COST}P로 바로`,locked:`${i+1}레벨`}[st];
-    return `<div class="nrow" style="transform:translateX(${x}px)"><button class="node ${st}" onclick="nodeTap(${i},'${st}')"><span class="nb">${ic}${i===13?'<span class="badge">복습</span>':''}</span><span class="nt">${esc(ttl)}</span><span class="ns">${sub}</span></button></div>`;
-  }).join('');
+    const sub={done:'완료 · 눌러서 복습',open:'오늘 도전!',pay:`오늘 도전 · 💎${LEVEL_COST}P`,tomorrow:`내일 열려요 · 💎${EARLY_COST}P로 바로`,locked:'앞 레벨을 끝내면 열려요'}[st];
+    const right=st==='done'?`<span class="stamp">${mascot(30,'joy',S.outfit)}<i>참 잘했어요</i></span>`
+      :st==='tomorrow'?`<span class="dic">${I.moon}</span>`:st==='locked'?`<span class="dic">${I.lock}</span>`:`<span class="dgo">${st==='pay'?'💎'+LEVEL_COST:'GO'}</span>`;
+    return `<button class="dayc ${st}" onclick="nodeTap(${i},'${st}')"><span class="dnum"><small>DAY</small><b>${i+1}</b></span><span class="dtx"><b>${esc(ttl)}${i===13?' <em>복습</em>':''}</b><small>${sub}</small></span>${right}</button>`;
+  };
+  const pr=prog(SK(MAPT,MAPS)), wd=w=>[0,1,2,3,4,5,6].filter(k=>pr[w*7+k]!=null).length;
+  const nodes=[0,1].map(w=>`<div class="wk"><div class="wkh"><b>${w+1}주차</b><span>${mine||past?`${wd(w)}/7 완료`:'미리 보기'}</span></div>${sec.lv.slice(w*7,w*7+7).map((t,k)=>row(t,w*7+k)).join('')}</div>`).join('');
   setScreen(`<div class="top"><h2>학습 지도</h2><span class="label">${TIERS[MAPT].en}</span></div>
     <div class="chips">${TIERS.map((t,k)=>`<button class="chip ${k===MAPT?'on':''}" onclick="MAPT=${k};MAPS=${k===S.tier?S.sec:0};mapScreen()">${k>S.tier?'🔒 ':''}${t.ko}</button>`).join('')}</div>
     <div class="chips" style="padding-top:0">${CURR[MAPT].map((s,k)=>`<button class="chip ${k===MAPS?'on':''}" style="${k===MAPS?'background:var(--coral);border-color:var(--coral)':''}" onclick="MAPS=${k};mapScreen()">${k+1}섹션 · ${esc(s.n)}</button>`).join('')}</div>
-    <div class="sec-card">${emblem(MAPT,58)}<div style="flex:1"><small>${TIERS[MAPT].ko} · ${MAPS+1}섹션 · 14레벨 (약 2주)</small><b>${esc(sec.n)}</b>
+    <div class="sec-card">${emblem(MAPT,58)}<div style="flex:1"><small>${TIERS[MAPT].ko} · ${MAPS+1}섹션 · 2주 플래너</small><b>${esc(sec.n)}</b>
       <div class="xpbar"><i style="width:${doneCount(SK(MAPT,MAPS))/14*100}%"></i></div></div></div>
     ${mine?'':`<div style="margin:12px 20px 0;font-size:12.5px;color:var(--muted);text-align:center">${past?'지나온 섹션이에요':'🔒 아직 열리지 않은 섹션이에요 · 커리큘럼 미리 보기'}</div>`}
-    <div class="path">${nodes}</div>
+    <div class="planner">${nodes}</div>
     ${DEV&&mine?`<div style="padding:0 20px 28px"><button class="toggle" style="width:100%" onclick="devDay()">🧪 테스트용: 하루 지나기</button></div>`:''}`,'map');
 }
 function nodeTap(i,st){
@@ -1370,7 +1504,8 @@ function reward(){
       <div class="addots">${Array.from({length:AD_LIMIT},(_,k)=>`<i class="${k<used?'on':''}"></i>`).join('')}</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:14px">오늘 ${used}/${AD_LIMIT}회 · 매일 자정 초기화</div>
       <button class="btn ${left?'btn-primary':'btn-soft'}" onclick="${left?'playAd()':"toast('오늘 광고를 모두 봤어요. 내일 다시 만나요!')"}">${left?`▶ 광고 보기 (${left}회 남음)`:'오늘은 모두 받았어요 ✓'}</button></div>
-    <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-top:16px;padding:0 4px">※ 지금은 흐름 확인용 가짜 광고예요. 실제 앱에서는 이 자리에 광고(AdMob 등)가 나오고, 광고 클릭 후 앱을 벗어난 시간을 재서 ${AD_STAY}초 이상이면 복귀할 때 포인트를 지급해요. 유료 결제는 넣지 않았어요.</div>
+    <button class="pcard" style="background:var(--mint-soft);margin:14px 0 0" onclick="go('closet')"><span class="qi" style="overflow:hidden;align-items:flex-end">${W(50,'happy')}</span><span class="tx"><b>워디 꾸미기</b><small>모은 포인트로 모자·옷·날개를 사서 입혀요 · ${Object.keys(S.owned||{}).length}개 보유</small></span><span class="chev">›</span></button>
+    ${DEV?'':'<!--'}<div style="font-size:12px;color:var(--muted);line-height:1.6;margin-top:16px;padding:0 4px">※ 지금은 흐름 확인용 가짜 광고예요. 실제 앱에서는 이 자리에 광고(AdMob 등)가 나오고, 광고 클릭 후 앱을 벗어난 시간을 재서 ${AD_STAY}초 이상이면 복귀할 때 포인트를 지급해요. 유료 결제는 넣지 않았어요.</div>${DEV?'':'-->'}
   </div>`,'reward');
 }
 function playAd(after){
@@ -1456,6 +1591,24 @@ function wear(k){
 }
 
 
+// ---------- 연습 탭: 발음 클리닉 · 콩글리시 · 레벨 테스트 ----------
+function practice(){
+  MAPT=null;
+  const wk=weakest();
+  setScreen(`<div class="top"><h2>연습</h2><span class="label">무료 · 매일 가능</span></div>
+  <div class="pad" style="padding-top:4px;display:flex;flex-direction:column;gap:14px">
+    <button class="pbig" style="background:linear-gradient(150deg,#2F6BFF,#1C3A8C);color:#fff" onclick="go('clinic')">
+      <span class="pb-art">${W(104,'happy')}<i>👄</i></span>
+      <span class="lab2">🇰🇷 한국인 맞춤</span><b>발음 클리닉</b><small>R/L · F/P · TH · V/B · 긴 이/짧은 이 · Z/S<br>한국인이 헷갈리는 소리를 구별해요</small>
+      ${wk?`<em>워디가 찾은 내 약점 · ${wk.ko} ${Math.round(accOf(wk.id)*100)}%</em>`:'<em>연습할수록 내 약점을 찾아 줘요</em>'}</button>
+    <button class="pbig" style="background:linear-gradient(150deg,#FFE3E3,#FFD0D6)" onclick="go('kong')">
+      <span class="pb-art">${W(104,'wow')}<i>🙅</i></span>
+      <span class="lab2" style="background:#fff;color:var(--red)">한국에서만 통하는 영어</span><b>콩글리시 교정</b><small>핸드폰 → cell phone<br>노트북 → laptop · 파이팅 → You can do it!</small>
+      <em style="background:#fff;color:var(--red)">${KONG.length}개 표현 · 한 번에 7문제</em></button>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6;padding:0 4px">진도와 상관없이 언제든 할 수 있고, 한 번 끝낼 때마다 +20 XP를 받아요.</div>
+  </div>`,'practice');
+}
+
 // ---------- 🇰🇷 한국인 맞춤 발음 클리닉 ----------
 const CLINIC=[
  {id:'rl',ko:'R / L',how:'R은 혀끝을 어디에도 대지 않고 둥글게 말아요. L은 혀끝을 윗니 뒤에 꾹 붙여요.',p:[['rice','쌀','lice','이(벌레)'],['right','오른쪽','light','빛'],['read','읽다','lead','이끌다'],['road','길','load','짐'],['grass','풀','glass','유리'],['pray','기도하다','play','놀다']]},
@@ -1483,7 +1636,7 @@ function startBonus(kind,id){
 }
 function clinic(){
   const wk=weakest();
-  setScreen(`<div class="top"><button class="iconbtn" onclick="go('home')">${I.back}</button><h2>한국인 발음 클리닉</h2></div>
+  setScreen(`<div class="top"><button class="iconbtn" onclick="go('practice')">${I.back}</button><h2>한국인 발음 클리닉</h2></div>
   <div class="pad" style="padding-top:6px">
     <div class="points-hero" style="background:linear-gradient(135deg,#1C3A8C,#2F6BFF)"><div style="position:absolute;right:-4px;bottom:-10px">${W(104,'happy')}</div>
       <small style="opacity:.85;font-weight:600">워디가 찾은 내 약점</small>
@@ -1496,30 +1649,72 @@ function clinic(){
       <div class="tx"><b>${c.ko}</b>${esc(c.p[0][0])} · ${esc(c.p[0][2])}${a!=null?`<div class="minibar"><i style="width:${Math.round(a*100)}%;${a<.7?'background:var(--red)':''}"></i></div>`:''}</div>
       <span class="en" style="font-weight:800;color:${a==null?'var(--muted)':a<.7?'var(--red)':'var(--mint)'}">${a==null?'—':Math.round(a*100)+'%'}</span></button>`}).join('')}</div>
     <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-top:14px">한 번에 7문제 · 무료 · 완료하면 +20 XP. 듣고 고르기와 말하기 결과로 정확도를 계산해요. 말할 때 짝 단어(예: rice ↔ lice)로 들리면 다시 해요.</div>
-  </div>`,'home');
+  </div>`,'practice');
 }
 
 // ---------- 🙅 콩글리시 교정 ----------
+// [콩글리시, 진짜 영어, 흔한 오답, 그림, 설명, 분류]
 const KONG=[
- ['핸드폰','cell phone','hand phone','📱','미국은 cell phone, 영국은 mobile phone이라고 해요.'],
- ['노트북','laptop','notebook','💻','notebook은 공책이에요!'],
- ['아이쇼핑','window shopping','eye shopping','🛍️','진열창(window)을 구경한다는 뜻이에요.'],
- ['파이팅!','You can do it!','Fighting!','💪','Fighting은 "싸우는 중"이라는 뜻이 돼요.'],
- ['셀카','selfie','self camera','🤳','셀카는 selfie 한 단어면 돼요.'],
- ['헬스장','gym','health','🏋️','health는 건강이라는 뜻이에요.'],
- ['에어컨','air conditioner','aircon','❄️','줄여서 AC라고도 해요.'],
- ['오토바이','motorcycle','auto bike','🏍️','autobike는 영어에 없어요.'],
- ['리모컨','remote control','remocon','📺','줄여서 remote라고 해요.'],
- ['사인(유명인)','autograph','sign','✍️','유명인 사인은 autograph, 서류 서명은 signature예요.'],
- ['원룸','studio apartment','one room','🏠','미국에선 studio라고 해요.'],
- ['개그맨','comedian','gag man','🎤','gagman은 영어권에서 안 써요.'],
- ['샤프','mechanical pencil','sharp','✏️','sharp는 "날카로운"이라는 뜻이에요.'],
- ['모닝콜','wake-up call','morning call','⏰','호텔에서 깨워 주는 전화는 wake-up call이에요.'],
- ['서비스(공짜)','It\'s on the house.','It\'s service.','🎁','가게에서 공짜로 주는 건 on the house예요.'],
- ['오픈카','convertible','open car','🚗','지붕이 열리는 차는 convertible이에요.'],
- ['핫도그(막대)','corn dog','hot dog','🌭','hot dog는 빵 사이에 소시지를 끼운 거예요.'],
- ['커닝','cheating','cunning','📝','cunning은 "교활한"이라는 뜻이에요.'],
+ ['핸드폰','cell phone','hand phone','📱','미국은 cell phone, 영국은 mobile phone이라고 해요.','thing'],
+ ['노트북','laptop','notebook','💻','notebook은 공책이에요!','thing'],
+ ['셀카','selfie','self camera','🤳','셀카는 selfie 한 단어면 돼요.','thing'],
+ ['에어컨','air conditioner','aircon','❄️','줄여서 AC라고도 해요.','thing'],
+ ['리모컨','remote control','remocon','📺','줄여서 remote라고 해요.','thing'],
+ ['오토바이','motorcycle','auto bike','🏍️','autobike는 영어에 없어요.','thing'],
+ ['콘센트','outlet','consent','🔌','consent는 "동의"라는 뜻이에요.','thing'],
+ ['핸들(자동차)','steering wheel','handle','🚘','handle은 문 손잡이 같은 걸 말해요.','thing'],
+ ['백미러','rearview mirror','back mirror','🪞','뒤를 보는 거울은 rearview mirror예요.','thing'],
+ ['클락션','horn','klaxon','📯','"빵빵" 울리는 건 horn이에요.','thing'],
+ ['비닐봉지','plastic bag','vinyl bag','🛍️','비닐봉지는 plastic bag이라고 해요.','thing'],
+ ['런닝머신','treadmill','running machine','🏃','달리는 기계는 treadmill이에요.','thing'],
+ ['드라이기','hair dryer','dryer','💨','dryer만 쓰면 빨래 건조기로 알아들어요.','thing'],
+ ['믹서기','blender','mixer','🥤','mixer는 반죽을 섞는 기계예요.','thing'],
+ ['전자레인지','microwave','electronic range','📦','전자레인지는 microwave예요.','thing'],
+ ['샤프','mechanical pencil','sharp','✏️','sharp는 "날카로운"이라는 뜻이에요.','thing'],
+ ['매직(펜)','marker','magic','🖊️','magic은 "마술"이에요.','thing'],
+ ['본드','glue','bond','🧴','bond는 "유대·채권"이라는 뜻이에요.','thing'],
+ ['깁스','cast','gips','🦴','Gips는 독일어예요. 영어로는 cast!','thing'],
+ ['밴드(반창고)','Band-Aid','band','🩹','상표 이름 Band-Aid나 bandage라고 해요.','thing'],
+ ['오픈카','convertible','open car','🚗','지붕이 열리는 차는 convertible이에요.','thing'],
+ ['원룸','studio apartment','one room','🏠','미국에선 줄여서 studio라고 해요.','thing'],
+ ['빌라','townhouse','villa','🏘️','villa는 휴양지의 고급 별장을 떠올려요.','thing'],
+ ['펜션','vacation rental','pension','🏡','pension은 "연금"이라는 뜻이에요.','thing'],
+ ['홈페이지','website','homepage','🌐','homepage는 웹사이트의 첫 화면만 말해요.','thing'],
+ ['SNS','social media','SNS','📲','영어권에서는 social media라고 해요.','thing'],
+ ['코팅','laminating','coating','📇','종이를 비닐로 씌우는 건 laminating이에요.','thing'],
+ ['핫도그(막대)','corn dog','hot dog','🌭','hot dog는 빵 사이에 소시지를 끼운 거예요.','food'],
+ ['사이다','Sprite','cider','🥤','cider는 사과 주스나 사과술이에요.','food'],
+ ['프림','creamer','prime','☕','커피에 넣는 건 creamer예요.','food'],
+ ['돈가스','pork cutlet','donkatsu','🍖','돼지고기 튀김은 pork cutlet이에요.','food'],
+ ['서비스(공짜)',"It's on the house.","It's service.",'🎁','가게에서 공짜로 주는 건 on the house예요.','food'],
+ ['더치페이',"Let's split the bill.","Let's Dutch pay.",'💸','각자 내자는 말은 split the bill이에요.','food'],
+ ['원피스','dress','one piece','👗','one-piece는 원피스 수영복을 떠올려요.','shop'],
+ ['와이셔츠','dress shirt','Y-shirt','👔','정장 셔츠는 dress shirt예요.','shop'],
+ ['점퍼','jacket','jumper','🧥','미국에서 jumper는 멜빵 원피스예요.','shop'],
+ ['츄리닝','sweatsuit','training','🩳','trainingsuit보다 sweatsuit라고 해요.','shop'],
+ ['런닝셔츠','tank top','running shirt','🎽','민소매 속옷은 tank top이나 undershirt예요.','shop'],
+ ['메이커(브랜드)','brand name','maker','🏷️','"메이커 신발"은 brand-name shoes예요.','shop'],
+ ['매니큐어','nail polish','manicure','💅','manicure는 손톱 관리 자체를 말해요.','shop'],
+ ['아이쇼핑','window shopping','eye shopping','🛍️','진열창(window)을 구경한다는 뜻이에요.','shop'],
+ ['디씨(할인)','Can I get a discount?','Can you DC?','💲','DC는 영어권에서 안 통해요.','shop'],
+ ['애프터서비스','repair service','after service','🔧','A/S는 warranty나 repair service예요.','shop'],
+ ['헬스장','gym','health','🏋️','health는 "건강"이라는 뜻이에요.','shop'],
+ ['아르바이트','part-time job','arbeit','🧑‍🍳','Arbeit는 독일어예요.','work'],
+ ['샐러리맨','office worker','salaryman','💼','회사원은 office worker예요.','work'],
+ ['스펙','qualifications','spec','📋','spec은 기계의 사양을 말해요.','work'],
+ ['커닝','cheating','cunning','📝','cunning은 "교활한"이라는 뜻이에요.','work'],
+ ['개그맨','comedian','gag man','🎤','gagman은 영어권에서 안 써요.','work'],
+ ['탤런트','TV actor','talent','🎬','talent는 "재능"이라는 뜻이에요.','work'],
+ ['백댄서','backup dancer','back dancer','💃','가수 뒤에서 추는 춤꾼은 backup dancer예요.','work'],
+ ['미팅(소개팅)','blind date','meeting','💘','meeting은 회의예요.','work'],
+ ['모닝콜','wake-up call','morning call','⏰','호텔에서 깨워 주는 전화는 wake-up call이에요.','work'],
+ ['파이팅!','You can do it!','Fighting!','💪','Fighting은 "싸우는 중"이라는 뜻이 돼요.','say'],
+ ['사인(유명인)','autograph','sign','✍️','유명인 사인은 autograph, 서류 서명은 signature예요.','say'],
+ ['오바하다',"Don't overreact.","Don't over.",'🙄','과하게 반응하는 건 overreact예요.','say'],
+ ['스킨십','physical affection','skinship','🤗','skinship은 영어에 없는 말이에요.','say'],
+ ['골인','score a goal','goal in','⚽','골을 넣는 건 score a goal이에요.','say'],
 ];
+const KCAT={all:'전체',thing:'물건·생활',food:'음식',shop:'패션·쇼핑',work:'학교·직장',say:'말·표현'};
 function kongActs(){
   const pick=pickN(KONG,4), acts=[];
   pick.forEach((k,j)=>{ const others=pickN(KONG.filter(x=>x!==k),2).map(x=>x[1]);
@@ -1528,13 +1723,21 @@ function kongActs(){
   return acts;
 }
 function kongScreen(){
-  setScreen(`<div class="top"><button class="iconbtn" onclick="go('home')">${I.back}</button><h2>콩글리시 교정</h2></div>
+  const cnt=k=>KONG.filter(x=>x[5]===k).length;
+  setScreen(`<div class="top"><button class="iconbtn" onclick="go('practice')">${I.back}</button><h2>콩글리시 교정</h2></div>
   <div class="pad" style="padding-top:6px">
-    <div class="today" style="margin-top:0"><div class="bear">${W(86,'wow')}</div><span class="lab">🙅 한국에서만 통하는 영어</span><h3 style="padding-right:80px">"노트북 주세요"<br>외국에선 공책을 줘요!</h3><p>자주 쓰는 콩글리시를 진짜 영어로 바꿔 말해 봐요.</p>
+    <div class="today" style="margin-top:0"><div class="bear">${W(86,'wow')}</div><span class="lab">🙅 한국에서만 통하는 영어</span><h3 style="padding-right:80px">"노트북 주세요"<br>외국에선 공책을 줘요!</h3><p>자주 쓰는 콩글리시를 진짜 영어로 바꿔 말해 봐요. 할 때마다 문제가 바뀌어요.</p>
       <button class="btn btn-primary" style="margin-top:16px" onclick="startBonus('kong')">▶ 7문제 시작 (무료 · +20 XP)</button></div>
-    <div class="sec-title">콩글리시 사전 <span class="label">${KONG.length}개</span></div>
-    <div class="list">${KONG.map(k=>`<button onclick="speak(${esc(JSON.stringify(k[1]))})"><span style="color:var(--ink);font-size:15px">${k[3]} ${esc(k[0])} <s style="color:var(--red);font-size:12px">${esc(k[2])}</s></span><b class="en" style="color:var(--coral);font-size:15px">${esc(k[1])}</b></button>`).join('')}</div>
-  </div>`,'home');
+    <button class="pcard" style="background:#fff;box-shadow:var(--shadow);margin:14px 0 0" onclick="go('kongDict')"><span class="qi" style="background:#FDECEC">📖</span><span class="tx"><b>콩글리시 사전</b><small>${KONG.length}개 표현 · ${Object.keys(KCAT).filter(k=>k!=='all').map(k=>`${KCAT[k]} ${cnt(k)}`).join(' · ')}</small></span><span class="chev">›</span></button>
+  </div>`,'practice');
+}
+let KCUR='all';
+function kongDict(){
+  const list=KONG.filter(k=>KCUR==='all'||k[5]===KCUR);
+  setScreen(`<div class="top"><button class="iconbtn" onclick="go('kong')">${I.back}</button><h2>콩글리시 사전</h2><span class="label">${list.length}개</span></div>
+    <div class="chips">${Object.entries(KCAT).map(([k,l])=>`<button class="chip ${k===KCUR?'on':''}" onclick="KCUR='${k}';kongDict()">${l}</button>`).join('')}</div>
+    <div class="pad" style="padding-top:4px"><div class="kd">${list.map(k=>`<button class="kdr" onclick="speak(${esc(JSON.stringify(k[1]))})"><span class="em">${k[3]}</span><span class="tx"><span class="ko">${esc(k[0])} <s>${esc(k[2])}</s></span><b class="en">${esc(k[1])}</b><small>${esc(k[4])}</small></span><span class="sp">${I.spk}</span></button>`).join('')}</div>
+    <div style="font-size:12px;color:var(--muted);text-align:center;margin:14px 0 4px">표현을 누르면 발음을 들려줘요</div></div>`,'practice');
 }
 function finishBonus(){
   const r=RUN; RUN=null; S.xp+=20; save();
@@ -1542,26 +1745,40 @@ function finishBonus(){
   setScreen(`<div class="res-big">${W(150,'joy')}<h1>${r.kind==='clinic'?'발음 클리닉 완료!':'콩글리시 교정 완료!'}</h1>
     <p>틀려도 괜찮아요. 하트도 벌칙도 없이 끝까지 해냈어요 💙</p>
     <div class="res-stats"><div class="stat"><b class="en">${r.first}/${r.acts.length}</b><small>한 번에 정답</small></div><div class="stat"><b class="en">+20</b><small>XP</small></div><div class="stat"><b style="font-size:16px">${wk?wk.ko:'👍'}</b><small>${r.kind==='clinic'?'지금 내 약점':'잘했어요'}</small></div></div>
-    <button class="btn btn-primary" onclick="${r.kind==='clinic'?"go('clinic')":"go('kong')"}">한 번 더 하기</button><button class="btn btn-ghost" onclick="go('home')">홈으로</button></div>`);
+    <button class="btn btn-primary" onclick="${r.kind==='clinic'?"go('clinic')":"go('kong')"}">한 번 더 하기</button><button class="btn btn-ghost" onclick="go('practice')">연습으로</button></div>`);
 }
 
 // ---------- 내 정보 ----------
+const SITE='https://wordy.kr/';
+const linkFor=p=>(BUILD==='web'||/wordy\.kr$/.test(location.hostname))?p:SITE+p;
+function openExt(h){ if(NATIVE&&NATIVE.openUrl){ try{ NATIVE.openUrl(h); return false; }catch(e){} } return true; }
+const LINK_TARGET=()=>BUILD==='web'?'_self':'_blank';
 function me(){
-  setScreen(`<div class="pad"><div class="prof-head" onclick="go('closet')" style="cursor:pointer">${W(110,'happy')}<h2>${esc(S.name||'학습자')}</h2>
-    <div style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">${emblem(S.tier,30)}<b>${TIERS[S.tier].ko}</b><span style="color:var(--muted);font-size:13px">· ${S.sec+1}섹션 · 총 ${S.xp} XP</span></div></div>
-    <div class="list" style="margin-top:14px"><button onclick="go('closet')">👕 워디 꾸미기 <span>${Object.keys(S.owned||{}).length}개 보유</span></button><button onclick="go('name')">이름 바꾸기 <span>${esc(S.name)}</span></button></div>
-    <div class="sec-title">워디 목소리</div>
-    <div class="seg" style="width:100%"><button class="${S.voice==='female'?'on':''}" onclick="S.voice='female';save();me();speak('Hi! Let\\'s practice English.')">👩 여성</button><button class="${S.voice==='male'?'on':''}" onclick="S.voice='male';save();me();speak('Hey! Ready for today\\'s challenge?')">👨 남성</button></div>
+  S.voice='female';
+  const lk=(p,l)=>`<a href="${linkFor(p)}" target="${LINK_TARGET()}" rel="noopener" onclick="return openExt(this.href)">${l} <span>→</span></a>`;
+  setScreen(`<div class="top"><h2>내 정보</h2></div>
+  <div class="pad" style="padding-top:4px">
+    <div class="prof-head" onclick="go('closet')" style="cursor:pointer">${W(110,'happy')}<h2>${esc(S.name||'학습자')}</h2>
+      <div style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">${emblem(S.tier,30)}<b>${TIERS[S.tier].ko}</b><span style="color:var(--muted);font-size:13px">· ${S.sec+1}섹션 · 총 ${S.xp} XP</span></div></div>
+    <div class="list" style="margin-top:14px">
+      <button onclick="go('name')">✏️ 이름 바꾸기 <span>${esc(S.name||'학습자')}</span></button>
+      <button onclick="go('closet')">👕 워디 꾸미기 <span>${Object.keys(S.owned||{}).length}개 보유</span></button>
+      <button onclick="toast('일본어 · 중국어 · 스페인어가 곧 추가돼요!')">🌏 학습 언어 <span>영어 (미국)</span></button>
+      <button onclick="speak('Hi! I\'m Wordy. Let\'s practice English together.');toast('남성 목소리는 곧 추가돼요!')">🔊 워디 목소리 <span>여성 · 들어 보기</span></button>
+    </div>
     <div class="sec-title">티어 안내</div>
     <div class="card">${TIERS.map((t,k)=>`<div class="tierrow ${k===S.tier?'me':''}">${emblem(k,40)}<div class="tx"><b>${t.ko}${k===S.tier?' · 지금 내 티어':''}</b>${t.focus}</div></div>`).join('')}</div>
     <div class="sec-title">학습 규칙</div>
     <div class="card" style="font-size:13.5px;line-height:1.7;color:var(--ink2)">• 하루에 1레벨씩 무료로 열려요 · 기다리기 싫으면 💎${EARLY_COST}P로 바로 열기<br>• 레벨 도전 💎${LEVEL_COST}P · 다음 섹션 열기 💎${SECTION_COST}P<br>• 레벨 완료 +${LEVEL_XP} XP · 14레벨(${TEST_XP} XP)을 채우면 레벨 테스트<br>• 테스트로 더 높은 티어가 나오면 승급, 그 티어 1섹션은 무료</div>
+    <div class="sec-title">고객 지원</div>
+    <div class="list">${lk('privacy.html','개인정보처리방침')}${lk('terms.html','이용약관')}${lk('contact.html','문의하기')}</div>
     ${DEV?`<div class="sec-title">📱 이 기기 환경 점검</div><div class="card" style="font-size:13px;line-height:1.8;color:var(--ink2)">${envInfo()}</div>`:''}
     ${DEV?`<div class="sec-title">🧪 테스트 도구 <span class="label">출시 전 삭제</span></div>
     <div class="list"><button onclick="devDay();me()">하루 지나기 <span>다음 레벨 열기</span></button>
       <button onclick="S.points+=50;save();me();toast('💎 +50P')">포인트 +50P <span>지금 ${S.points}P</span></button>
       <button onclick="devFinishSec()">이번 섹션 바로 완료 <span>테스트 열기</span></button>
       <button onclick="confirmBox('처음부터 다시','모든 기록을 지우고 처음 화면으로 돌아가요.','초기화',()=>{try{localStorage.removeItem(LS)}catch(e){}location.reload()})">처음부터 다시 <span>초기화</span></button></div>`:''}
+    <div style="text-align:center;margin:28px 0 8px;color:var(--muted);font-size:12px;line-height:1.7"><b class="en" style="font-size:16px;color:var(--coral);letter-spacing:.06em">WORDY</b><br>하루 한 레벨, 워디와 챌린지.<br>문의 support.wordy@gmail.com</div>
   </div>`,'me');
 }
 function envInfo(){
