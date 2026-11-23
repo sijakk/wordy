@@ -629,10 +629,13 @@ body{flex-direction:column;justify-content:flex-start;min-height:100dvh}
 .site-head{width:100%;background:#fff;border-bottom:1px solid var(--line);flex-shrink:0}
 .site-head .inner{max-width:760px;margin:0 auto;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between}
 .site-head .logo{font:800 20px -apple-system,BlinkMacSystemFont,"Pretendard","Noto Sans KR",sans-serif;color:#2f7de1;text-decoration:none;letter-spacing:.5px}
-.site-head nav a{margin-left:16px;color:#5b6678;text-decoration:none;font-size:15px}
+.site-head .logo{flex-shrink:0;margin-right:16px}
+.site-head nav{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.site-head nav::-webkit-scrollbar{display:none}
+.site-head nav a{color:#5b6678;text-decoration:none;font-size:15px;white-space:nowrap;font-weight:600}
 .site-head nav a:hover{color:#2f7de1}
 .site-head nav a.on{color:#2f7de1;font-weight:700}
-@media(max-width:600px){.site-head .logo{font-size:18px}.site-head nav a{margin-left:12px;font-size:14px}.site-head nav a.hide-m{display:none}}
+@media(max-width:600px){.site-head .inner{padding:0 14px}.site-head .logo{font-size:17px;margin-right:12px}.site-head nav{gap:12px}.site-head nav a{font-size:13px}}
 .site-foot{width:100%;max-width:720px;padding:28px 20px 36px;color:var(--ink2);font-size:13.5px;line-height:1.7}
 .site-foot h2{font-size:16px;color:var(--ink);margin-bottom:6px}
 .site-foot p{margin-bottom:14px}
@@ -658,8 +661,8 @@ html.is-app .app{height:100dvh;margin-top:0}
 </head>
 <body>
 <header class="site-head"><div class="inner">
-<a class="logo" href="./">WORDY</a>
-<nav><a class="on" href="./">▶ 워디 학습하기</a><a class="hide-m" href="app.html">앱 화면</a><a href="learn/">영어 학습</a><a class="hide-m" href="about.html">소개</a><a class="hide-m" href="contact.html">문의</a></nav>
+<a class="logo" href="/">WORDY</a>
+<nav><a href="/daily.html">워디 데일리</a><a class="on" href="/">워디 영어</a><a href="/learn/">영어 자료실</a><a href="/about.html">소개</a><a href="/contact.html">문의</a></nav>
 </div></header>
 <div class="app" id="app">
   <div id="screen"></div>
@@ -683,7 +686,7 @@ html.is-app .app{height:100dvh;margin-top:0}
     <li><a href="learn/">전체 학습 자료 보기 →</a></li>
   </ul>
   <ul class="policy">
-    <li><a href="about.html">워디 소개</a></li><li><a href="contact.html">문의하기</a></li><li><a href="privacy.html">개인정보처리방침</a></li><li><a href="terms.html">이용약관</a></li><li><a href="lite.html">이전 버전(워디 Lite)</a></li>
+    <li><a href="about.html">워디 소개</a></li><li><a href="contact.html">문의하기</a></li><li><a href="privacy.html">개인정보처리방침</a></li><li><a href="terms.html">이용약관</a></li><li><a href="daily.html">워디 데일리</a></li><li><a href="lite.html">이전 버전(워디 Lite)</a></li>
   </ul>
   <small>© 2026 WORDY · 문의 support.wordy@gmail.com</small>
 </footer>

@@ -34,3 +34,12 @@ td.en{font-weight:700;white-space:nowrap}
 .site-footer{border-top:1px solid var(--line);background:#fff;font-size:14px;color:var(--muted);padding:24px 0}
 .site-footer a{color:var(--muted);margin-right:14px}
 @media (max-width:600px){h1{font-size:24px}table{font-size:14px}td.en{white-space:normal}.nav a{margin-left:10px;font-size:14px}.nav a.hide-m{display:none}}
+
+/* 상단 메뉴 5개 (워디 데일리 · 워디 영어 · 영어 자료실 · 소개 · 문의) */
+.site-header .logo{flex-shrink:0;margin-right:16px}
+.nav{display:flex;align-items:center;gap:18px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.nav::-webkit-scrollbar{display:none}
+.nav a{margin-left:0;white-space:nowrap;font-weight:600}
+.nav a.on{color:var(--blue);font-weight:800}
+.nav a.hide-m{display:inline}
+@media(max-width:600px){.site-header .inner{padding:0 12px}.site-header .logo{margin-right:10px;font-size:18px}.nav{gap:10px}.nav a{font-size:12.5px}}
