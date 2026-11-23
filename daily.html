@@ -10,6 +10,19 @@
 <meta property="og:description" content="영어 리그와 우리말 리그, 매일 같은 5개를 배우고 친구와 결과를 비교해 보세요.">
 <meta property="og:image" content="https://wordy.kr/icon-512.png">
 <meta property="og:url" content="https://wordy.kr/daily.html">
+<meta name="theme-color" content="#F3F7FF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="워디 데일리">
+<link rel="manifest" href="/daily-manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<script>
+/* 홈 화면에 추가해서 열면(앱 모드) 사이트 메뉴 없이 앱 화면만 꽉 차게 */
+(function(){ var sa=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+  if(sa){ window.__STANDALONE=1; document.documentElement.classList.add('is-app'); } })();
+</script>
 <link rel="canonical" href="https://wordy.kr/daily.html">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -690,11 +703,17 @@ body.has-site .app{height:calc(100dvh - 56px);max-height:820px}
 .site nav a.on{color:#2f7de1;font-weight:700}
 @media(max-width:600px){.site{padding:0 14px;gap:12px}.site .logo{font-size:17px}.site nav{gap:12px}.site nav a{font-size:13px}}
 </style>
+<style>
+html.is-app .site{display:none}
+html.is-app body{padding-top:0!important;background:var(--bg)}
+html.is-app .app{max-width:none!important;max-height:none!important;height:100dvh!important;border-radius:0!important;box-shadow:none!important;margin:0!important}
+@media (display-mode: standalone){.site{display:none}body{padding-top:0!important}.app{max-width:none!important;max-height:none!important;height:100dvh!important;border-radius:0!important;box-shadow:none!important;margin:0!important}}
+</style>
 </head>
 <body>
 <header class="site" id="site"><a class="logo" href="/">WORDY</a>
   <nav><a class="on" href="/daily.html">워디 데일리</a><a href="/">워디 영어</a><a href="/learn/">영어 자료실</a><a href="/about.html">소개</a><a href="/contact.html">문의</a></nav></header>
-<script>if(window.__BUILD!=='web'||/WordyApp/.test(navigator.userAgent)||window.WordyNative){document.getElementById('site').remove()}else{document.body.classList.add('has-site')}</script>
+<script>if(window.__BUILD!=='web'||window.__STANDALONE||/WordyApp/.test(navigator.userAgent)||window.WordyNative){document.getElementById('site').remove()}else{document.body.classList.add('has-site')}</script>
 <div class="app" id="app">
   <div id="screen"></div>
   <nav class="tabbar hidden" id="tabbar"></nav>
